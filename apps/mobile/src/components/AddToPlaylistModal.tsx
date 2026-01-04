@@ -1,19 +1,19 @@
 import { Ionicons } from "@expo/vector-icons";
+import { addTracksToPlaylist, addTrackToPlaylist, getPlaylists } from "@soundx/services";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  Modal,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    FlatList,
+    Modal,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { Playlist, TrackType } from "../models";
-import { addTracksToPlaylist, addTrackToPlaylist, getPlaylists } from "../services/playlist";
 import { usePlayMode } from "../utils/playMode";
 
 interface AddToPlaylistModalProps {
@@ -49,7 +49,7 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
     if (!user) return;
     try {
       setLoading(true);
-      const res = await getPlaylists(user.id, mode as TrackType);
+      const res = await getPlaylists(mode as TrackType, user.id);
       if (res.code === 200) {
         setPlaylists(res.data);
       }

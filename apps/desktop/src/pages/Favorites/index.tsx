@@ -23,7 +23,7 @@ import React, { useRef, useState } from "react";
 import Cover from "../../components/Cover/index";
 import type { TimelineItem } from "../../models";
 import { type Album, type Track } from "../../models";
-import { getFavoriteAlbums, getFavoriteTracks } from "../../services/user";
+import { getFavoriteAlbums, getFavoriteTracks } from "@soundx/services";
 import { usePlayerStore } from "../../store/player";
 import { formatDuration } from "../../utils/formatDuration";
 import { usePlayMode } from "../../utils/playMode";

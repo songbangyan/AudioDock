@@ -2,7 +2,7 @@ import { Avatar, Checkbox, Col, Flex, Modal, Row, message, theme } from "antd";
 import React, { useEffect, useState } from "react";
 import type { User } from "../../models";
 import { socketService } from "../../services/socket";
-import { getUserList } from "../../services/user";
+import { getUserList } from "@soundx/services";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { useSyncStore } from "../../store/sync";

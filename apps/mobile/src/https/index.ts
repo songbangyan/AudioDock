@@ -80,4 +80,8 @@ instance.interceptors.response.use(
   }
 );
 
+import { setRequestInstance } from "@soundx/services";
+
+setRequestInstance(instance);
+
 export default instance;

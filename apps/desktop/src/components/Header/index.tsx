@@ -26,11 +26,11 @@ import {
   createImportTask,
   getImportTask,
   TaskStatus,
-} from "../../services/import";
+} from "@soundx/services";
 import {
   searchAll,
   type SearchResults as SearchResultsType,
-} from "../../services/search";
+} from "@soundx/services";
 import { useAuthStore } from "../../store/auth";
 import { isWindows } from "../../utils/platform";
 import { usePlayMode } from "../../utils/playMode";

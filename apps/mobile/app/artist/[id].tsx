@@ -5,11 +5,9 @@ import { usePlayer } from "@/src/context/PlayerContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { getBaseURL } from "@/src/https";
 import { Album, Artist, Track, TrackType } from "@/src/models";
-import { getAlbumsByArtist } from "@/src/services/album";
-import { getArtistById } from "@/src/services/artist";
-import { getTracksByArtist } from "@/src/services/track";
 import { usePlayMode } from "@/src/utils/playMode";
 import { Ionicons } from "@expo/vector-icons";
+import { getAlbumsByArtist, getArtistById, getTracksByArtist } from "@soundx/services";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {

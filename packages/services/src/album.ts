@@ -1,10 +1,10 @@
-import request from "../https";
+import request from "./request";
 import type {
   Album,
   ILoadMoreData,
   ISuccessResponse,
   ITableData,
-} from "../models";
+} from "./models";
 
 export const getAlbumList = () => {
   return request.get<any, ISuccessResponse<Album[]>>("/album/list");

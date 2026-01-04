@@ -15,7 +15,7 @@ import {
     createPlaylist,
     getPlaylists,
     type Playlist,
-} from "../../services/playlist";
+} from "@soundx/services";
 import { useAuthStore } from "../../store/auth";
 import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";

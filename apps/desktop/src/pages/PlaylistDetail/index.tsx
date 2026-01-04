@@ -38,7 +38,7 @@ import {
   removeTrackFromPlaylist,
   updatePlaylist,
   type Playlist,
-} from "../../services/playlist";
+} from "@soundx/services";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { getCoverUrl } from "../../utils";

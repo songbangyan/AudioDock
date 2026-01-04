@@ -44,10 +44,10 @@ import {
     addTrackToPlaylist,
     getPlaylists,
     type Playlist,
-} from "../../services/playlist";
+} from "@soundx/services";
 import { socketService } from "../../services/socket";
-import { deleteTrack, getDeletionImpact } from "../../services/track";
-import { addToHistory, getLatestHistory } from "../../services/user"; // Added
+import { deleteTrack, getDeletionImpact } from "@soundx/services";
+import { addToHistory, getLatestHistory } from "@soundx/services"; // Added
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { useSettingsStore } from "../../store/settings";

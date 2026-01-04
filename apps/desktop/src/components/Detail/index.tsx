@@ -1,32 +1,36 @@
 import {
-    CaretRightOutlined,
-    CloudDownloadOutlined,
-    DeleteOutlined,
-    HeartFilled,
-    HeartOutlined,
-    MoreOutlined,
-    PauseCircleFilled,
-    PlayCircleFilled,
-    PlayCircleOutlined,
-    PlusOutlined,
-    SearchOutlined,
-    SortAscendingOutlined,
-    SortDescendingOutlined
+  CaretRightOutlined,
+  CloudDownloadOutlined,
+  DeleteOutlined,
+  HeartFilled,
+  HeartOutlined,
+  MoreOutlined,
+  PauseCircleFilled,
+  PlayCircleFilled,
+  PlayCircleOutlined,
+  PlusOutlined,
+  SearchOutlined,
+  SortAscendingOutlined,
+  SortDescendingOutlined
 } from "@ant-design/icons";
+import {
+  addTrackToPlaylist, deleteTrack, getAlbumById, getAlbumTracks, getDeletionImpact, getPlaylists,
+  type Playlist, toggleAlbumLike, unlikeAlbum
+} from "@soundx/services";
 import { useRequest } from "ahooks";
 import {
-    Avatar,
-    Col,
-    Dropdown,
-    Flex,
-    Input,
-    List,
-    type MenuProps,
-    Modal,
-    Row,
-    Table,
-    theme,
-    Typography,
+  Avatar,
+  Col,
+  Dropdown,
+  Flex,
+  Input,
+  List,
+  type MenuProps,
+  Modal,
+  Row,
+  Table,
+  theme,
+  Typography,
 } from "antd";
 import type { ColumnProps } from "antd/es/table";
 import React, { useEffect, useState } from "react";
@@ -34,14 +38,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMessage } from "../../context/MessageContext";
 import { getBaseURL } from "../../https";
 import { type Album, type Track, TrackType } from "../../models";
-import { getAlbumById, getAlbumTracks } from "../../services/album";
-import {
-    addTrackToPlaylist,
-    getPlaylists,
-    type Playlist,
-} from "../../services/playlist";
-import { deleteTrack, getDeletionImpact } from "../../services/track";
-import { toggleAlbumLike, unlikeAlbum } from "../../services/user";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { getCoverUrl } from "../../utils";
@@ -516,12 +512,12 @@ const Detail: React.FC = () => {
                     <HeartFilled
                       className={styles.actionIcon}
                       style={{ color: "#ff4d4f" }}
-                      onClick={() => album && unlikeAlbumRequest(album.id)}
+                      onClick={() => album && user?.id && unlikeAlbumRequest(album.id, user.id)}
                     />
                   ) : (
                     <HeartOutlined
                       className={styles.actionIcon}
-                      onClick={() => album && likeAlbum(album.id)}
+                      onClick={() => album && user?.id && likeAlbum(album.id, user.id)}
                     />
                   )}
                   <CloudDownloadOutlined className={styles.actionIcon} />

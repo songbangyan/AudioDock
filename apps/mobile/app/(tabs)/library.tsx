@@ -1,6 +1,7 @@
 import { AlphabetSidebar } from "@/src/components/AlphabetSidebar";
 import { groupAndSort, SectionData } from "@/src/utils/pinyin";
 import { Ionicons } from "@expo/vector-icons";
+import { getArtistList, loadMoreAlbum } from "@soundx/services";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -17,8 +18,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../src/context/ThemeContext";
 import { getBaseURL } from "../../src/https";
 import { Album, Artist } from "../../src/models";
-import { loadMoreAlbum } from "../../src/services/album";
-import { getArtistList } from "../../src/services/artist";
 import { usePlayMode } from "../../src/utils/playMode";
 
 const GAP = 15;

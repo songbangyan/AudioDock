@@ -2,7 +2,7 @@ import { HddOutlined, LockOutlined, UserOutlined } from "@ant-design/icons";
 import { Button, Checkbox, Form, Input, Modal, Typography, theme } from "antd";
 import { useEffect, useState } from "react";
 import { useMessage } from "../../context/MessageContext";
-import { login, register } from "../../services/auth";
+import { login, register } from "@soundx/services";
 import { useAuthStore } from "../../store/auth";
 import styles from "./index.module.less";
 

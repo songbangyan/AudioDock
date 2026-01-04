@@ -3,7 +3,7 @@ import * as Device from 'expo-device';
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { initBaseURL } from "../https";
 import { User } from "../models";
-import { login as loginApi, register as registerApi } from "../services/auth";
+import { login as loginApi, register as registerApi } from "@soundx/services";
 
 interface AuthContextType {
   user: User | null;

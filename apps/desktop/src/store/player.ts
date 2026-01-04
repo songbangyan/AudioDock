@@ -1,7 +1,6 @@
+import { addAlbumToHistory, addToHistory, reportAudiobookProgress, toggleLike, toggleUnLike } from "@soundx/services";
 import { create } from "zustand";
 import { TrackType, type Track } from "../models";
-import { addAlbumToHistory, addToHistory, toggleLike, toggleUnLike } from "../services/user";
-import { reportAudiobookProgress } from "../services/userAudiobookHistory";
 import { getPlayMode } from "../utils/playMode";
 import { useAuthStore } from "./auth";
 
@@ -220,7 +219,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
           // History Logic
           try {
-            await addToHistory(track.id, startTime, deviceName, device.id, false);
+            const userId = useAuthStore.getState().user?.id;
+            if (userId) {
+              await addToHistory(track.id, userId, startTime, deviceName, device.id, false);
+            }
           } catch (e) {
             console.error("Failed to add track to history", e);
           }
@@ -228,7 +230,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
           if (albumId && albumId !== currentAlbumId) {
             set({ currentAlbumId: albumId });
             try {
-              await addAlbumToHistory(albumId);
+              const userId = useAuthStore.getState().user?.id;
+              if (userId) {
+                await addAlbumToHistory(albumId, userId);
+              }
             } catch (e) {
               console.error("Failed to add album to history", e);
             }
@@ -240,7 +245,6 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
           // But if startTime is provided and > 0, we might want to seek?
           // For now, let's assume if track is same, we respect existing currentTime unless startTime is explicit?
           if (startTime !== undefined) {
-            set({ currentTime: startTime });
             // And audio element will pick it up via useEffect if we implement it there? 
             // Currently store just sets state. Player component needs to react to currentTime change if it's a seek.
             // But existing logic: setCurrentTime doesn't seek audio element directly, handleSeek does.
@@ -315,7 +319,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       const nextTrack = playlist[nextIndex];
       set({ currentTrack: nextTrack, isPlaying: true, currentTime: 0 });
 
-      addToHistory(nextTrack.id);
+      const userId = useAuthStore.getState().user?.id;
+      if (userId) {
+          addToHistory(nextTrack.id, userId).catch(console.error);
+      }
 
       // Persist
       const s = get();
@@ -344,7 +351,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       const prevTrack = playlist[prevIndex];
       set({ currentTrack: prevTrack, isPlaying: true, currentTime: 0 });
 
-      addToHistory(prevTrack.id);
+      const userId = useAuthStore.getState().user?.id;
+      if (userId) {
+          addToHistory(prevTrack.id, userId).catch(console.error);
+      }
 
       // Persist
       const s = get();
@@ -371,19 +381,19 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
     toggleLike: async (trackId, type) => {
       try {
-        await (type === "like" ? toggleLike(trackId) : toggleUnLike(trackId));
+        const userId = useAuthStore.getState().user?.id;
+        if (!userId) {
+             console.warn("User not logged in, cannot toggle like");
+             return;
+        }
+        await (type === "like" ? toggleLike(trackId, userId) : toggleUnLike(trackId, userId));
         const { currentTrack } = get();
         if (currentTrack?.id === trackId) {
-          const userId = useAuthStore.getState().user?.id;
-          if (!userId) return; // Should probably handle this better, but consistent with requirement
-          set({
-            currentTrack: {
-              ...currentTrack,
-              likedByUsers: type === "like"
-                ? [...(currentTrack?.likedByUsers ?? []), userId]
-                : (currentTrack?.likedByUsers ?? []).filter((id) => id !== userId)
-            }
-          });
+          // The instruction explicitly removes the optimistic update of `likedByUsers`
+          // to avoid type errors and complexity with mocking UserTrackLike objects.
+          // The previous code was also pushing `userId` directly, which was incorrect
+          // if `likedByUsers` expects `UserTrackLike` objects.
+          // For now, we rely on the server response or a refresh to update the liked status.
         }
       } catch (e) {
         console.error("Failed to toggle like", e);

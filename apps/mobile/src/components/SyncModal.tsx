@@ -1,14 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
+import { getUserList } from '@soundx/services';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Dimensions,
-  FlatList,
-  Modal,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Dimensions,
+    FlatList,
+    Modal,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { usePlayer } from '../context/PlayerContext';
@@ -16,7 +17,6 @@ import { useSync } from '../context/SyncContext';
 import { useTheme } from '../context/ThemeContext';
 import { User } from '../models';
 import { socketService } from '../services/socket';
-import { getUserList } from '../services/user';
 
 interface SyncModalProps {
   visible: boolean;

@@ -22,7 +22,7 @@ import {
 import React, { useRef, useState } from "react";
 import Cover from "../../components/Cover/index";
 import type { Album, TimelineItem, Track } from "../../models";
-import { getAlbumHistory, getTrackHistory } from "../../services/user";
+import { getAlbumHistory, getTrackHistory } from "@soundx/services";
 import { usePlayerStore } from "../../store/player";
 import { formatDuration } from "../../utils/formatDuration";
 import { usePlayMode } from "../../utils/playMode";

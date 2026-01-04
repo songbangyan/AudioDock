@@ -16,7 +16,7 @@ import { usePlayer } from "../src/context/PlayerContext";
 import { useTheme } from "../src/context/ThemeContext";
 import { getBaseURL } from "../src/https";
 import { Album, Artist, Track } from "../src/models";
-import { searchAlbums, searchArtists, searchTracks } from "../src/services/search";
+import { searchAlbums, searchArtists, searchTracks } from "@soundx/services";
 import { usePlayMode } from "../src/utils/playMode";
 
 export default function SearchScreen() {

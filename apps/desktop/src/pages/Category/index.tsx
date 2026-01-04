@@ -3,7 +3,7 @@ import { Col, Row, theme } from "antd";
 import React, { useEffect, useLayoutEffect, useRef } from "react";
 import Cover from "../../components/Cover/index";
 import type { Album } from "../../models";
-import { loadMoreAlbum } from "../../services/album";
+import { loadMoreAlbum } from "@soundx/services";
 import { useAlbumListCache } from "../../store/category";
 import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";

@@ -8,6 +8,9 @@
       ],
       "@soundx/db": [
         "../../packages/db/dist"
+      ],
+      "@soundx/services": [
+        "../../packages/services/src"
       ]
     }
   },

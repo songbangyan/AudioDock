@@ -2,7 +2,7 @@ import { Avatar, Empty } from "antd";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { getBaseURL } from "../../https";
-import type { SearchResults as SearchResultsType } from "../../services/search";
+import type { SearchResults as SearchResultsType } from "@soundx/services";
 import { usePlayerStore } from "../../store/player";
 import styles from "./index.module.less";
 

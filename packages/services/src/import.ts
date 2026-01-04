@@ -1,5 +1,5 @@
-import request from "../https";
-import type { ISuccessResponse } from "../models";
+import request from "./request";
+import type { ISuccessResponse } from "./models";
 
 export enum TaskStatus {
   INITIALIZING = 'INITIALIZING',

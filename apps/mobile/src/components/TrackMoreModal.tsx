@@ -11,7 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../context/ThemeContext";
 import { Track } from "../models";
-import { deleteTrack } from "../services/track";
+import { deleteTrack } from "@soundx/services";
 
 interface TrackMoreModalProps {
   visible: boolean;

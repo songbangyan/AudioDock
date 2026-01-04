@@ -3,9 +3,9 @@ import { PlayMode, usePlayer } from "@/src/context/PlayerContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { getBaseURL } from "@/src/https";
 import { Track, TrackType, UserTrackLike } from "@/src/models";
-import { likeTrack, unlikeTrack } from "@/src/services/track";
 import { Ionicons } from "@expo/vector-icons";
 import { Slider } from "@miblanchard/react-native-slider";
+import { toggleLike, toggleUnLike } from "@soundx/services";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -141,9 +141,9 @@ export default function PlayerScreen() {
 
     try {
       if (previousLiked) {
-        await unlikeTrack(user.id, Number(currentTrack.id));
+        await toggleUnLike(Number(currentTrack.id), user.id);
       } else {
-        await likeTrack({ userId: user.id, trackId: Number(currentTrack.id) });
+        await toggleLike(Number(currentTrack.id), user.id);
       }
     } catch (error) {
       console.error("Failed to toggle like", error);

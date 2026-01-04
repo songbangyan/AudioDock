@@ -2,6 +2,7 @@ import { usePlayer } from "@/src/context/PlayerContext";
 import { EvilIcons, Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
+import { getLatestArtists, getLatestTracks, getRecentAlbums, getRecommendedAlbums } from "@soundx/services";
 import * as Device from "expo-device";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -23,12 +24,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../src/context/ThemeContext";
 import { getBaseURL } from "../../src/https";
-import {
-  getRecentAlbums,
-  getRecommendedAlbums,
-} from "../../src/services/album";
-import { getLatestArtists } from "../../src/services/artist";
-import { getLatestTracks } from "../../src/services/track";
 import { cacheUtils } from "../../src/utils/cache";
 import { usePlayMode } from "../../src/utils/playMode";
 

@@ -1,22 +1,10 @@
-import request from "../https";
-import type { ISuccessResponse } from "../models";
-import { type Track } from "../models";
+import type { ISuccessResponse, Playlist } from "./models";
+import request from "./request";
 
-export interface Playlist {
-  id: number;
-  name: string;
-  type: "MUSIC" | "AUDIOBOOK";
-  userId: number;
-  createdAt: string;
-  updatedAt: string;
-  _count?: {
-    tracks: number;
-  };
-  tracks?: Track[];
-}
+
 
 export const createPlaylist = async (name: string, type: "MUSIC" | "AUDIOBOOK", userId: number) => {
-  return await request.post<any, ISuccessResponse<boolean>>("/playlists", { name, type, userId });
+  return await request.post<any, ISuccessResponse<Playlist>>("/playlists", { name, type, userId });
 };
 
 export const getPlaylists = async (type?: "MUSIC" | "AUDIOBOOK", userId?: number) => {
@@ -37,6 +25,10 @@ export const deletePlaylist = async (id: number) => {
 
 export const addTrackToPlaylist = async (playlistId: number, trackId: number) => {
   return await request.post<any, ISuccessResponse<boolean>>(`/playlists/${playlistId}/tracks`, { trackId });
+};
+
+export const addTracksToPlaylist = async (playlistId: number, trackIds: number[]) => {
+  return await request.post<any, ISuccessResponse<boolean>>(`/playlists/${playlistId}/tracks/batch`, { trackIds });
 };
 
 export const removeTrackFromPlaylist = async (playlistId: number, trackId: number) => {

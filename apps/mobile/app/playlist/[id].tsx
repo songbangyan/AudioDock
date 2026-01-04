@@ -3,8 +3,8 @@ import { usePlayer } from "@/src/context/PlayerContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { getBaseURL } from "@/src/https";
 import { Playlist } from "@/src/models";
-import { deletePlaylist, getPlaylistDetail, updatePlaylist } from "@/src/services/playlist";
 import { Ionicons } from "@expo/vector-icons";
+import { deletePlaylist, getPlaylistById, updatePlaylist } from "@soundx/services";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -44,7 +44,7 @@ export default function PlaylistDetailScreen() {
   const loadData = async (playlistId: number) => {
     try {
       setLoading(true);
-      const res = await getPlaylistDetail(playlistId);
+      const res = await getPlaylistById(Number(id));
       if (res.code === 200) setPlaylist(res.data);
     } catch (error) {
       console.error("Failed to load playlist details:", error);
@@ -57,7 +57,7 @@ export default function PlaylistDetailScreen() {
     if (!playlist || !newName.trim()) return;
     setUpdating(true);
     try {
-      const res = await updatePlaylist(playlist.id, { name: newName.trim() });
+      const res = await updatePlaylist(playlist.id, newName.trim());
       if (res.code === 200) {
         setPlaylist({ ...playlist, name: newName.trim() });
         setRenameModalVisible(false);

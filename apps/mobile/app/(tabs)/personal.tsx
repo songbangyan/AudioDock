@@ -1,4 +1,12 @@
 import { useFocusEffect } from "@react-navigation/native";
+import {
+  createPlaylist,
+  getAlbumHistory,
+  getFavoriteAlbums,
+  getFavoriteTracks,
+  getPlaylists,
+  getTrackHistory
+} from "@soundx/services";
 import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -18,9 +26,6 @@ import { usePlayer } from "../../src/context/PlayerContext";
 import { useTheme } from "../../src/context/ThemeContext";
 import { getBaseURL } from "../../src/https";
 import { Playlist, Track } from "../../src/models";
-import { getHistoryAlbums, getLikedAlbums } from "../../src/services/album";
-import { createPlaylist, getPlaylists } from "../../src/services/playlist";
-import { getHistoryTracks, getLikedTracks } from "../../src/services/user";
 import { usePlayMode } from "../../src/utils/playMode";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -105,22 +110,22 @@ export default function PersonalScreen() {
     setLoading(true);
     try {
       if (activeTab === "playlists") {
-        const res = await getPlaylists(user.id, mode as any); 
+        const res = await getPlaylists(mode as any, user.id); 
         if (res.code === 200) setPlaylists(res.data);
       } else if (activeTab === "favorites") {
         if (mode === "MUSIC" && activeSubTab === "track") {
-          const res = await getLikedTracks(user.id, 0, 10000, mode as any);
+          const res = await getFavoriteTracks(user.id, 0, 10000, mode as any);
           if (res.code === 200) setFavorites(res.data.list.map((item: any) => item.track));
         } else {
-          const res = await getLikedAlbums(user.id, 0, 10000, mode as any);
+          const res = await getFavoriteAlbums(user.id, 0, 10000, mode as any);
           if (res.code === 200) setFavorites(res.data.list.map((item: any) => item.album));
         }
       } else if (activeTab === "history") {
         if (mode === "MUSIC" && activeSubTab === "track") {
-          const res = await getHistoryTracks(user.id, 0, 10000, mode as any);
+          const res = await getTrackHistory(user.id, 0, 10000, mode as any);
           if (res.code === 200) setHistory(res.data.list.map((item: any) => item.track));
         } else {
-          const res = await getHistoryAlbums(user.id, 0, 10000, mode as any);
+          const res = await getAlbumHistory(user.id, 0, 10000, mode as any);
           if (res.code === 200) setHistory(res.data.list.map((item: any) => item.album));
         }
       }
@@ -136,11 +141,11 @@ export default function PersonalScreen() {
     
     setCreating(true);
     try {
-      const res = await createPlaylist({
-        name: newPlaylistName.trim(),
-        type: mode as any,
-        userId: user.id
-      });
+      const res = await createPlaylist(
+        newPlaylistName.trim(),
+        mode as any,
+        user.id
+      );
       
       if (res.code === 200) {
         setCreateModalVisible(false);

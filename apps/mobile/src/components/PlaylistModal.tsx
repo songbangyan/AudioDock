@@ -3,8 +3,8 @@ import { useAuth } from "@/src/context/AuthContext";
 import { usePlayer } from "@/src/context/PlayerContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { TrackType } from "@/src/models";
-import { getHistoryAlbums, getLikedAlbums } from "@/src/services/album";
-import { getHistoryTracks, getLikedTracks } from "@/src/services/user";
+import { getAlbumHistory, getFavoriteAlbums } from "@soundx/services";
+import { getTrackHistory, getFavoriteTracks } from "@soundx/services";
 import { usePlayMode } from "@/src/utils/playMode";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -67,24 +67,24 @@ export const PlaylistModal = () => {
 
       if (activeTab === "history") {
         if (currentSubTab === "track") {
-          res = await getHistoryTracks(user.id, 0, 50, "MUSIC");
+          res = await getTrackHistory(user.id, 0, 50, "MUSIC");
           if (res.code === 200) {
             setListData(res.data.list.map((item: any) => item.track));
           }
         } else {
-          res = await getHistoryAlbums(user.id, 0, 50, mode);
+          res = await getAlbumHistory(user.id, 0, 50, mode);
           if (res.code === 200) {
             setListData(res.data.list.map((item: any) => item.album));
           }
         }
       } else if (activeTab === "favorites") {
         if (currentSubTab === "track") {
-          res = await getLikedTracks(user.id, 0, 50, "MUSIC");
+          res = await getFavoriteTracks(user.id, 0, 50, "MUSIC");
           if (res.code === 200) {
             setListData(res.data.list.map((item: any) => item.track));
           }
         } else {
-          res = await getLikedAlbums(user.id, 0, 50, mode);
+          res = await getFavoriteAlbums(user.id, 0, 50, mode);
           if (res.code === 200) {
             setListData(res.data.list.map((item: any) => item.album));
           }

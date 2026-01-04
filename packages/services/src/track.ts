@@ -1,10 +1,10 @@
-import request from "../https";
+import request from "./request";
 import type {
     ILoadMoreData,
     ISuccessResponse,
     ITableData,
     Track,
-} from "../models";
+} from "./models";
 
 export const getTrackList = () => {
   return request.get<any, ISuccessResponse<Track[]>>("/track/list");

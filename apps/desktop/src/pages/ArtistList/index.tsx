@@ -13,7 +13,7 @@ import React, { useEffect, useLayoutEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getBaseURL } from "../../https";
 import { type Artist } from "../../models";
-import { getArtistList } from "../../services/artist";
+import { getArtistList } from "@soundx/services";
 import { useArtistListCache } from "../../store/artist";
 import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";

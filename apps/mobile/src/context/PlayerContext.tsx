@@ -1,31 +1,29 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { addAlbumToHistory, addToHistory, getLatestHistory, reportAudiobookProgress } from "@soundx/services";
 import * as Device from "expo-device";
 import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
+    createContext,
+    useContext,
+    useEffect,
+    useRef,
+    useState,
 } from "react";
 import { Alert } from "react-native";
 import TrackPlayer, {
-  AppKilledPlaybackBehavior,
-  Capability,
-  Event,
-  IOSCategory,
-  IOSCategoryMode,
-  IOSCategoryOptions,
-  State,
-  useProgress,
-  useTrackPlayerEvents,
+    AppKilledPlaybackBehavior,
+    Capability,
+    Event,
+    IOSCategory,
+    IOSCategoryMode,
+    IOSCategoryOptions,
+    State,
+    useProgress,
+    useTrackPlayerEvents,
 } from "react-native-track-player";
 import { getBaseURL } from "../https";
 import { Track, TrackType } from "../models";
-import { addAlbumToHistory } from "../services/album";
 import { downloadTrack, isCached } from "../services/cache";
 import { socketService } from "../services/socket";
-import { addToHistory, getLatestHistory } from "../services/user";
-import { reportAudiobookProgress } from "../services/userAudiobookHistory";
 import { PLAYER_EVENTS, playerEventEmitter } from "../utils/playerEvents";
 import { usePlayMode } from "../utils/playMode";
 import { useAuth } from "./AuthContext";
@@ -175,12 +173,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             Capability.Stop,
             Capability.SeekTo,
           ],
-          compactCapabilities: [
-            Capability.Play,
-            Capability.Pause,
-            Capability.SkipToNext,
-            Capability.SkipToPrevious,
-          ],
+          // compactCapabilities: [
+          //   Capability.Play,
+          //   Capability.Pause,
+          //   Capability.SkipToNext,
+          //   Capability.SkipToPrevious,
+          // ],
           progressUpdateEventInterval: 2,
 
           android: {
@@ -470,12 +468,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           Capability.Stop,
           Capability.SeekTo,
         ],
-        compactCapabilities: [
-          Capability.Play,
-          Capability.Pause,
-          Capability.SkipToNext,
-          Capability.SkipToPrevious,
-        ],
+        // compactCapabilities: [
+        //   Capability.Play,
+        //   Capability.Pause,
+        //   Capability.SkipToNext,
+        //   Capability.SkipToPrevious,
+        // ],
       });
 
       if (initialPosition) {

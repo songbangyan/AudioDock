@@ -1,5 +1,5 @@
-import request from "../https";
-import type { Album, Artist, ISuccessResponse, Track } from "../models";
+import request from "./request";
+import type { Album, Artist, ISuccessResponse, Track } from "./models";
 
 export interface SearchResults {
   tracks: Track[];

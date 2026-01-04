@@ -7,8 +7,8 @@ import { usePlayer } from "@/src/context/PlayerContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { getBaseURL } from "@/src/https";
 import { Album, Track } from "@/src/models";
-import { getAlbumById, getAlbumTracks, toggleAlbumLike, unlikeAlbum } from "@/src/services/album";
 import { Ionicons } from "@expo/vector-icons";
+import { getAlbumById, getAlbumTracks, toggleAlbumLike, unlikeAlbum } from "@soundx/services";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {

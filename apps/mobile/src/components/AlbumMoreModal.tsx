@@ -1,18 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
+import { addTracksToPlaylist, createPlaylist } from "@soundx/services";
 import React from "react";
 import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Modal,
+    Pressable,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { Album, TrackType } from "../models";
-import { addTracksToPlaylist, createPlaylist } from "../services/playlist";
 
 interface AlbumMoreModalProps {
   visible: boolean;
@@ -39,11 +39,11 @@ export const AlbumMoreModal: React.FC<AlbumMoreModalProps> = ({
     if (!user || !album) return;
     try {
       // 1. Create playlist
-      const res = await createPlaylist({
-        name: album.name,
-        type: album.type || TrackType.MUSIC,
-        userId: user.id
-      });
+      const res = await createPlaylist(
+        album.name,
+        album.type || TrackType.MUSIC,
+        user.id
+      );
 
       if (res.code === 200) {
         // 2. Add tracks
