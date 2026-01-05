@@ -8,7 +8,7 @@ import {
   SelectOutlined,
   StepBackwardFilled,
   StepForwardFilled,
-  UnorderedListOutlined
+  UnorderedListOutlined,
 } from "@ant-design/icons";
 import { Button, Slider, Tooltip, Typography, theme } from "antd";
 import React, { useEffect, useState } from "react";
@@ -51,15 +51,16 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({ onRestore }) => {
     const handleUpdate = (_event: any, payload: any) => {
       if (payload.isPlaying !== undefined) setIsPlaying(payload.isPlaying);
       if (payload.track !== undefined) {
-         setCurrentTrack(payload.track);
-         setCurrentLyric("");
+        setCurrentTrack(payload.track);
+        setCurrentLyric("");
       }
-      if (payload.currentTime !== undefined) setCurrentTime(payload.currentTime);
+      if (payload.currentTime !== undefined)
+        setCurrentTime(payload.currentTime);
       if (payload.duration !== undefined) setDuration(payload.duration);
     };
 
     const handleLyricUpdate = (_event: any, payload: any) => {
-       if (payload.currentLyric) setCurrentLyric(payload.currentLyric);
+      if (payload.currentLyric) setCurrentLyric(payload.currentLyric);
     };
 
     (window as any).ipcRenderer.on("player:update", handleUpdate);
@@ -125,7 +126,9 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({ onRestore }) => {
               size="small"
               icon={isAlwaysOnTop ? <PushpinFilled /> : <PushpinOutlined />}
               onClick={toggleAlwaysOnTop}
-              className={`${styles.iconBtn} ${isAlwaysOnTop ? styles.active : ""}`}
+              className={`${styles.iconBtn} ${
+                isAlwaysOnTop ? styles.active : ""
+              }`}
             />
           </Tooltip>
         </div>
@@ -140,7 +143,12 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({ onRestore }) => {
               {currentTrack?.name || "SoundX"}
             </Text>
           </div>
-          <Text ellipsis type="secondary" className={styles.artist} style={{ color: currentLyric ? token.colorPrimary : undefined }}>
+          <Text
+            ellipsis
+            type="secondary"
+            className={styles.artist}
+            style={{ color: currentLyric ? token.colorPrimary : undefined }}
+          >
             {currentLyric || currentTrack?.artist || "AudioDock"}
           </Text>
         </div>
@@ -171,8 +179,8 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({ onRestore }) => {
             type="text"
             size="small"
             icon={
-              currentTrack?.likedByUsers?.includes(
-                Number(localStorage.getItem("userId"))
+              currentTrack?.likedByUsers?.find(
+                (n) => n.id === Number(localStorage.getItem("userId"))
               ) ? (
                 <HeartFilled />
               ) : (

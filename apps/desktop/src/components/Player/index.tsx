@@ -10,7 +10,7 @@ import Icon, {
   SoundOutlined,
   StepBackwardOutlined,
   StepForwardOutlined,
-  TeamOutlined,
+  TeamOutlined
 } from "@ant-design/icons";
 import {
   addToHistory,
@@ -1212,6 +1212,13 @@ const Player: React.FC = () => {
 
       {/* Volume & Settings */}
       <div className={styles.settings}>
+        {/* {currentTrack?.likedByUsers?.find(
+          (n) => n.id === Number(localStorage.getItem("userId"))
+        ) ? (
+          <HeartFilled onClick={() => toggleLike(currentTrack.id, 'unlike')} className={styles.settingIcon} />
+        ) : (
+          <HeartOutlined onClick={() => toggleLike(currentTrack.id, 'like')} className={styles.settingIcon} />
+        )} */}
         {/* Play Order */}
         {renderPlayOrderButton()}
 
