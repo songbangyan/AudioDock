@@ -109,19 +109,25 @@ export default function PlayerScreen() {
     if (hideTimerRef.current) {
       clearTimeout(hideTimerRef.current);
     }
+
+    if (!needsAutoHide) {
+      setControlsVisible(true);
+      return;
+    }
+
     setControlsVisible(true);
     hideTimerRef.current = setTimeout(() => {
       if (isLandscape && needsAutoHide) {
         setControlsVisible(false);
       }
-    }, 3000);
+    }, 3000); // 3 seconds of inactivity as per previous requirements
   };
 
   const needsAutoHide =
     isLandscape &&
     artworkHeight > 0 &&
     controlsHeight > 0 &&
-    artworkHeight + controlsHeight + 60 > height; // 60 is estimated padding/gaps
+    artworkHeight + controlsHeight + 80 > height; // 80 is estimated padding/gaps for landscape safe area and spacing
 
   useEffect(() => {
     if (isLandscape && needsAutoHide && controlsVisible) {
@@ -152,7 +158,7 @@ export default function PlayerScreen() {
       setLiked(!!isLiked);
     }
   }, [currentTrack, user]);
-  
+
   const breatheAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -195,8 +201,9 @@ export default function PlayerScreen() {
   };
 
   useEffect(() => {
-    const shouldShowLyrics =
-      isLandscape ? currentTrack?.type !== TrackType.AUDIOBOOK : showLyrics;
+    const shouldShowLyrics = isLandscape
+      ? currentTrack?.type !== TrackType.AUDIOBOOK
+      : showLyrics;
 
     if (!shouldShowLyrics || !currentTrack?.lyrics) return;
 
@@ -318,7 +325,8 @@ export default function PlayerScreen() {
           <Image
             source={{
               uri: item.cover
-                ? typeof item.cover === "string" && item.cover.startsWith("http")
+                ? typeof item.cover === "string" &&
+                  item.cover.startsWith("http")
                   ? item.cover
                   : `${getBaseURL()}${item.cover}`
                 : `https://picsum.photos/seed/${item.id}/20/20`,
@@ -341,7 +349,11 @@ export default function PlayerScreen() {
             {currentTrack?.type === TrackType.AUDIOBOOK &&
               (item as any).progress > 0 && (
                 <Text
-                  style={{ fontSize: 10, color: colors.secondary, marginTop: 2 }}
+                  style={{
+                    fontSize: 10,
+                    color: colors.secondary,
+                    marginTop: 2,
+                  }}
                 >
                   已听{" "}
                   {Math.floor(
@@ -421,11 +433,7 @@ export default function PlayerScreen() {
           }}
           style={styles.likeButton}
         >
-          <Ionicons
-            name="ellipsis-horizontal"
-            size={24}
-            color={colors.text}
-          />
+          <Ionicons name="ellipsis-horizontal" size={24} color={colors.text} />
         </TouchableOpacity>
       </View>
 
@@ -538,7 +546,7 @@ export default function PlayerScreen() {
         ]}
       >
         <View style={styles.landscapeContainer}>
-          <View style={styles.landscapeLeft}>
+          <View style={[styles.landscapeLeft]}>
             <View style={styles.landscapeBackBtn}>
               <TouchableOpacity
                 onPress={() => router.back()}
@@ -554,8 +562,13 @@ export default function PlayerScreen() {
                 }
               }}
               activeOpacity={1}
-              style={[styles.landscapeArtworkContainer, { flex: 1 }]}
-              onLayout={(e) => setArtworkHeight(e.nativeEvent.layout.height)}
+              style={[
+                styles.landscapeArtworkContainer,
+                !needsAutoHide && {
+                  justifyContent: "flex-start",
+                  paddingTop: "50%"
+                },
+              ]}
             >
               <Image
                 source={{
@@ -566,6 +579,7 @@ export default function PlayerScreen() {
                       : `${getBaseURL()}${currentTrack.cover}`
                     : "https://picsum.photos/400",
                 }}
+                onLayout={(e) => setArtworkHeight(e.nativeEvent.layout.height)}
                 style={[styles.artwork, { marginBottom: 0 }]}
               />
             </TouchableOpacity>
@@ -654,7 +668,7 @@ export default function PlayerScreen() {
           <Ionicons name="chevron-down" size={30} color={colors.text} />
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.headerButton}
           onPress={() => setMoreModalVisible(true)}
         >
@@ -911,13 +925,13 @@ const styles = StyleSheet.create({
   rateButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: "rgba(0,0,0,0.05)",
     minWidth: 45,
-    alignItems: 'center',
+    alignItems: "center",
   },
   rateText: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   likeButton: {
     padding: 0,
