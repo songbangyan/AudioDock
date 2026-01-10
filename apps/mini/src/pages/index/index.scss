@@ -1,0 +1,157 @@
+.index-container {
+  height: 100vh;
+  background-color: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+}
+
+.scroll-content {
+  flex: 1;
+  height: 100%;
+  padding-bottom: var(--mini-player-height);
+}
+
+.header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 20px 10px;
+}
+
+.header-title {
+  font-size: var(--font-size-xxl);
+  font-weight: bold;
+  color: #333;
+}
+
+.mode-toggle {
+  padding: 20rpx;
+  background-color: #fff;
+  border-radius: 50%;
+  width: 40rpx;
+  height: 40rpx;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: var(--font-size-md);
+  box-shadow: 0 2rpx 4rpx rgba(0,0,0,0.05);
+}
+
+.search-bar {
+  margin: 10px 20px;
+  padding: 12px 16px;
+  background-color: #fff;
+  border-radius: 10px;
+  border: 1px solid #eee;
+}
+
+.search-text {
+  color: #999;
+  font-size: var(--font-size-sm);
+}
+
+.section {
+  margin-bottom: 25rpx;
+}
+
+.section-header {
+  padding: 0 20px 15px;
+}
+
+.section-title {
+  font-size: var(--font-size-base);
+  font-weight: bold;
+  color: #333;
+}
+
+.horizontal-list {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.flex-row {
+  display: flex;
+  flex-direction: row;
+  padding: 0 20px;
+}
+
+.artist-card {
+  margin-right: 25rpx;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  width: 180rpx;
+}
+
+.artist-image {
+  width: 180rpx;
+  height: 180rpx;
+  border-radius: 50%;
+  margin-bottom: 18rpx;
+  background-color: #eee;
+}
+
+.album-card {
+  margin-right: 15rpx;
+  display: inline-flex;
+  flex-direction: column;
+  width: 180rpx;
+}
+
+.album-image {
+  width: 180rpx;
+  height: 180rpx;
+  border-radius: 12rpx;
+  margin-bottom: 8rpx;
+  background-color: #eee;
+}
+
+.item-name {
+  font-size: var(--font-size-sm);
+  color: #333;
+  text-align: center;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-card {
+  display: flex;
+  flex: 1 0 380rpx;
+  flex-direction: row;
+  gap: 15rpx;
+}
+
+.track-image {
+  width: 80rpx;
+  height: inherit;
+  border-radius: 8rpx;
+  background-color: #eee;
+  margin-bottom: 8rpx;
+}
+
+.track-info {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.track-title {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-artist {
+  font-size: var(--font-size-sm);
+  color: #888;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

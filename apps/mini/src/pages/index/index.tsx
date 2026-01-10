@@ -1,0 +1,160 @@
+import { getLatestArtists, getLatestTracks, getRecentAlbums, getRecommendedAlbums } from '@soundx/services'
+import { Image, ScrollView, Text, View } from '@tarojs/components'
+import Taro, { useDidShow } from '@tarojs/taro'
+import { useEffect, useState } from 'react'
+import MiniPlayer from '../../components/MiniPlayer'
+import { usePlayer } from '../../context/PlayerContext'
+import { usePlayMode } from '../../utils/playMode'
+import { getBaseURL } from '../../utils/request'
+import './index.scss'
+
+export default function Index() {
+  const { playTrack } = usePlayer()
+  const { mode, setMode } = usePlayMode()
+  const [sections, setSections] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const loadData = async () => {
+    setLoading(true)
+    try {
+      const promises: Promise<any>[] = [
+        getLatestArtists(mode, true, 8),
+        getRecentAlbums(mode, true, 8),
+        getRecommendedAlbums(mode, true, 8),
+      ];
+      
+      if (mode === 'MUSIC') {
+        promises.push(getLatestTracks('MUSIC', true, 8));
+      }
+
+      const results = await Promise.all(promises);
+      const [artistsRes, recentRes, recommendedRes] = results;
+      const tracksRes = mode === 'MUSIC' ? results[3] : null;
+
+      const newSections = [
+        {
+          id: 'artists',
+          title: '艺术家',
+          data: artistsRes.code === 200 ? artistsRes.data : [],
+          type: 'artist',
+        },
+        {
+          id: 'recent',
+          title: '最近上新',
+          data: recentRes.code === 200 ? recentRes.data : [],
+          type: 'album',
+        },
+        {
+          id: 'recommended',
+          title: '为你推荐',
+          data: recommendedRes.code === 200 ? recommendedRes.data : [],
+          type: 'album',
+        },
+      ];
+
+      if (mode === 'MUSIC' && tracksRes?.code === 200) {
+        newSections.push({
+          id: 'tracks',
+          title: '上新单曲',
+          data: tracksRes.data,
+          type: 'track',
+        });
+      }
+
+      setSections(newSections)
+    } catch (error) {
+      console.error('Failed to load home data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [mode])
+
+  // Need to handle page show refresh if needed, for now standard load is fine
+  useDidShow(() => {
+      // Potentially refresh or check auth
+  })
+
+  const handleTrackPlay = (track) => {
+      playTrack(track)
+  }
+
+  const getImageUrl = (url: string | null) => {
+      if (!url) return `https://picsum.photos/200/200`;
+      if (url.startsWith('http')) return url;
+      return `${getBaseURL()}${url}`;
+  }
+
+  return (
+    <View className='index-container'>
+      <ScrollView
+        scrollY
+        className='scroll-content'
+        refresherEnabled
+        refresherTriggered={loading}
+        onRefresherRefresh={loadData}
+      >
+        <View className='header'>
+          <Text className='header-title'>推荐</Text>
+          <View className='mode-toggle' onClick={() => setMode(mode === 'MUSIC' ? 'AUDIOBOOK' : 'MUSIC')}>
+            <Text>{mode === 'MUSIC' ? '🎵' : '🎧'}</Text>
+          </View>
+        </View>
+
+        <View className='search-bar' onClick={() => Taro.navigateTo({ url: '/pages/search/index' })}>
+           <Text className='search-text'>搜索单曲，艺术家，专辑</Text>
+        </View>
+
+        {sections.map((section) => (
+          <View key={section.id} className='section'>
+            <View className='section-header'>
+              <Text className='section-title'>{section.title}</Text>
+            </View>
+
+            <ScrollView scrollX className='horizontal-list' showScrollbar={false}>
+               <View className='flex-row'>
+                {section.type === 'track' ? (
+                   // Simply horizontally list tracks for now, chunking logic can be added later if needed
+                   section.data.map((track) => (
+                       <View key={track.id} className='track-card' onClick={() => handleTrackPlay(track)}>
+                          <Image src={getImageUrl(track.cover)} className='track-image' mode='aspectFill'/>
+                          <View className='track-info'>
+                             <Text className='track-title' numberOfLines={1}>{track.name}</Text>
+                             <Text className='track-artist' numberOfLines={1}>{track.artist}</Text>
+                          </View>
+                       </View>
+                   ))
+                ) : (
+                    section.data.map((item) => (
+                        <View 
+                            key={item.id} 
+                            className={section.type === 'artist' ? 'artist-card' : 'album-card'}
+                            onClick={() => {
+                                // Navigate to artist or album page
+                                const url = section.type === 'artist' 
+                                    ? `/pages/artist/index?id=${item.id}` 
+                                    : `/pages/album/index?id=${item.id}`;
+                                Taro.navigateTo({ url });
+                            }}
+                        >
+                            <Image 
+                                src={getImageUrl(section.type === 'artist' ? item.avatar : item.cover)} 
+                                className={section.type === 'artist' ? 'artist-image' : 'album-image'} 
+                                mode='aspectFill'
+                            />
+                            <Text className='item-name' numberOfLines={1}>{item.name}</Text>
+                        </View>
+                    ))
+                )}
+               </View>
+            </ScrollView>
+          </View>
+        ))}
+      </ScrollView>
+      <MiniPlayer />
+    </View>
+  )
+}

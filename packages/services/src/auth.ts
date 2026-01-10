@@ -21,3 +21,6 @@ export const check = () => {
   return request.get<any, ISuccessResponse<boolean>>("/auth/check");
 };
 
+export const hello = () => {
+  return request.get<any, ISuccessResponse<string>>("/hello");
+};
