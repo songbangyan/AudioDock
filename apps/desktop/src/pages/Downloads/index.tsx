@@ -1,26 +1,23 @@
 import {
   FolderOpenOutlined,
-  PauseCircleOutlined,
-  PlayCircleOutlined,
   SyncOutlined,
 } from "@ant-design/icons";
-import { Button, Col, Empty, message, Row, Table, theme, Tooltip, Typography } from "antd";
+import { Button, Col, Empty, message, Row, Tooltip, Typography } from "antd";
 import React, { useEffect, useState } from "react";
 import Cover from "../../components/Cover/index";
-import { type Album, type Track } from "../../models";
+import TrackList from "../../components/TrackList";
+import { type Album } from "../../models";
 import { usePlayerStore } from "../../store/player";
 import { useSettingsStore } from "../../store/settings";
-import { formatDuration } from "../../utils/formatDuration";
 import { usePlayMode } from "../../utils/playMode";
 import styles from "./index.module.less";
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
 const Downloads: React.FC = () => {
   const [localItems, setLocalItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const { token } = theme.useToken();
-  const { play, setPlaylist, currentTrack, isPlaying } = usePlayerStore();
+  const { play, setPlaylist } = usePlayerStore();
   const { mode } = usePlayMode();
   const downloadPath = useSettingsStore((state) => state.download.downloadPath);
 
@@ -45,11 +42,6 @@ const Downloads: React.FC = () => {
     fetchLocalItems();
   }, [mode, downloadPath]);
 
-  const handlePlayTrack = (track: Track, tracks: Track[]) => {
-    setPlaylist(tracks);
-    play(track, -1);
-  };
-
   const handleOpenFolder = () => {
     if (!(window as any).ipcRenderer) return;
     const subFolder = mode === "MUSIC" ? "music" : "audio";
@@ -60,69 +52,6 @@ const Downloads: React.FC = () => {
       }
     });
   };
-
-  const columns = [
-    {
-      title: " ",
-      key: "play",
-      width: 50,
-      render: (_: any, record: Track) => {
-        const isCurrent = currentTrack?.id === record.id;
-        return (
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              handlePlayTrack(record, localItems as Track[]);
-            }}
-            style={{ cursor: "pointer" }}
-          >
-            {isCurrent && isPlaying ? (
-              <PauseCircleOutlined style={{ color: token.colorPrimary }} />
-            ) : (
-              <PlayCircleOutlined />
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      title: "标题",
-      dataIndex: "name",
-      key: "name",
-      render: (text: string, record: Track) => (
-        <Text
-          strong={currentTrack?.id === record.id}
-          style={{
-            color:
-              currentTrack?.id === record.id ? token.colorPrimary : undefined,
-          }}
-        >
-          {text}
-        </Text>
-      ),
-    },
-    {
-      title: "艺术家",
-      dataIndex: "artist",
-      key: "artist",
-      render: (text: string) => <Text type="secondary">{text}</Text>,
-    },
-    {
-      title: "专辑",
-      dataIndex: "album",
-      key: "album",
-      render: (text: string) => <Text type="secondary">{text}</Text>,
-    },
-    {
-      title: "时长",
-      dataIndex: "duration",
-      key: "duration",
-      width: 100,
-      render: (duration: number) => (
-        <Text type="secondary">{formatDuration(duration)}</Text>
-      ),
-    },
-  ];
 
   // Group by album for Audiobook mode
   const albums: any[] = [];
@@ -174,17 +103,17 @@ const Downloads: React.FC = () => {
           localItems.length === 0 ? (
             <></>
           ) : (
-            <Table
-              dataSource={localItems}
-              columns={columns}
-              pagination={false}
-              rowKey="id"
-              size="small"
-              onRow={(record) => ({
-                onDoubleClick: () => {
-                  handlePlayTrack(record, localItems as Track[]);
-                },
-              })}
+             <TrackList
+              tracks={localItems}
+              loading={loading}
+              showIndex={false}
+              showArtist={true}
+              showAlbum={true}
+              onPlay={(track, tracks) => {
+                setPlaylist(tracks);
+                play(track, -1);
+              }}
+              onRefresh={fetchLocalItems}
             />
           )
         ) : (

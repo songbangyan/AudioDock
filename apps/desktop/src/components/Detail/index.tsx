@@ -1,48 +1,28 @@
 import {
-    CaretRightOutlined,
-    CloudDownloadOutlined,
-    DeleteOutlined,
-    HeartFilled,
-    HeartOutlined,
-    MoreOutlined,
-    PauseCircleFilled,
-    PlayCircleFilled,
-    PlayCircleOutlined,
-    PlusOutlined,
-    SearchOutlined,
-    SortAscendingOutlined,
-    SortDescendingOutlined
+  CaretRightOutlined,
+  CloudDownloadOutlined,
+  HeartFilled,
+  HeartOutlined,
+  SearchOutlined,
+  SortAscendingOutlined,
+  SortDescendingOutlined,
 } from "@ant-design/icons";
 import {
-    addTrackToPlaylist, deleteTrack, getAlbumById, getAlbumTracks, getDeletionImpact, getPlaylists,
-    type Playlist, toggleAlbumLike, unlikeAlbum
+  getAlbumById,
+  getAlbumTracks,
+  toggleAlbumLike,
+  unlikeAlbum,
 } from "@soundx/services";
 import { useRequest } from "ahooks";
-import {
-    Avatar,
-    Col,
-    Dropdown,
-    Flex,
-    Input,
-    List,
-    type MenuProps,
-    Modal,
-    Row,
-    Table,
-    theme,
-    Typography,
-} from "antd";
-import type { ColumnProps } from "antd/es/table";
+import { Avatar, Col, Flex, Input, Row, theme, Typography } from "antd";
 import React, { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useMessage } from "../../context/MessageContext";
-import { type Album, type Track, TrackType } from "../../models";
+import { type Album, type Track } from "../../models";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { getCoverUrl } from "../../utils";
-import { formatDuration } from "../../utils/formatDuration";
-import { usePlayMode } from "../../utils/playMode";
-import PlayingIndicator from "../PlayingIndicator";
+import TrackList from "../TrackList";
 import styles from "./index.module.less";
 
 const { Title, Text } = Typography;
@@ -63,21 +43,8 @@ const Detail: React.FC = () => {
   const [keywordMidValue, setKeywordMidValue] = useState("");
   const [isLiked, setIsLiked] = useState(false);
 
-  // Playlist Modal State
-  const [isAddToPlaylistModalOpen, setIsAddToPlaylistModalOpen] =
-    useState(false);
-  const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
-
   const { token } = theme.useToken();
-  const navigate = useNavigate();
-
-  const [modalApi, contextHolder] = Modal.useModal();
-
-  const { play, setPlaylist, currentTrack, toggleLike, pause, isPlaying, removeTrack } =
-    usePlayerStore();
-
-  const { mode } = usePlayMode();
+  const { play, setPlaylist } = usePlayerStore();
 
   const pageSize = 20;
 
@@ -118,7 +85,7 @@ const Detail: React.FC = () => {
       if (res.code === 200) {
         setAlbum(res.data);
         // Check if liked by current user
-        // @ts-ignore - likedByUsers is included in response but might not be in type definition yet
+        // @ts-ignore
         const likedByUsers = res.data.likedByUsers || [];
         const isLikedByCurrentUser = likedByUsers.some(
           (like: any) => like.userId === user?.id
@@ -149,6 +116,8 @@ const Detail: React.FC = () => {
       );
       if (res.code === 200) {
         const newTracks = res.data.list;
+        // Ensure albumName is populated if needed by TrackList (though we pass explicit album name usually? TrackList uses track.album)
+        // Tracks from getAlbumTracks probably have album data or not?
         if (currentPage === 0) {
           setTracks(newTracks);
         } else {
@@ -183,267 +152,16 @@ const Detail: React.FC = () => {
     }
   };
 
-  const handlePlayTrack = (track: Track) => {
-    if (track.id === currentTrack?.id && isPlaying) {
-      pause();
-      return;
-    }
-    // If track is not in current playlist (or playlist is empty), set it
-    // For simplicity, we can just set the current visible tracks as playlist
-    if (album) {
-      setPlaylist(tracks);
-      const shouldResume =
-        album.type === TrackType.AUDIOBOOK &&
-        track.progress &&
-        track.progress > 0;
-      play(track, album.id, shouldResume ? track.progress : 0);
-    }
+  const handleRefresh = () => {
+    // When a track is deleted or updated, we should refresh the list.
+    // Ideally we re-fetch the current view.
+    if (!id) return;
+    // Simple approach: reset
+    setTracks([]);
+    setPage(0);
+    setHasMore(true);
+    fetchTracks(Number(id), 0, sort, keyword);
   };
-
-  const handleToggleLike = async (
-    e: React.MouseEvent,
-    track: Track,
-    type: "like" | "unlike"
-  ) => {
-    e.stopPropagation();
-    await toggleLike(track.id, type);
-  };
-
-  const openAddToPlaylistModal = async (e: React.MouseEvent, track: Track) => {
-    e.stopPropagation();
-    setSelectedTrack(track);
-    setIsAddToPlaylistModalOpen(true);
-    try {
-      const res = await getPlaylists(mode, user?.id);
-      if (res.code === 200) {
-        setPlaylists(res.data);
-      }
-    } catch (error) {
-      message.error("获取播放列表失败");
-    }
-  };
-
-  const handleAddToPlaylist = async (playlistId: number) => {
-    if (!selectedTrack) return;
-    try {
-      const res = await addTrackToPlaylist(playlistId, selectedTrack.id);
-      if (res.code === 200) {
-        message.success("添加成功");
-        setIsAddToPlaylistModalOpen(false);
-      } else {
-        message.error("添加失败");
-      }
-    } catch (error) {
-      message.error("添加失败");
-    }
-  };
-
-  const handleDeleteSubTrack = async (track: Track) => {
-    try {
-      const { data: impact } = await getDeletionImpact(track.id);
-
-      modalApi.confirm({
-        title: "确定删除该音频文件吗?",
-        content: impact?.isLastTrackInAlbum
-          ? `这是专辑《${impact.albumName}》的最后一个音频，删除后该专辑也将被同步删除。`
-          : "删除后将无法恢复，且会同步删除本地原文件。",
-        okText: "删除",
-        okType: "danger",
-        cancelText: "取消",
-        onOk: async () => {
-          try {
-            const res = await deleteTrack(track.id, impact?.isLastTrackInAlbum);
-            if (res.code === 200) {
-              message.success("删除成功");
-              if (impact?.isLastTrackInAlbum) {
-                navigate(-1);
-              } else {
-                setTracks((prev) => prev.filter((t) => t.id !== track.id));
-              }
-              removeTrack(track.id);
-            } else {
-              message.error("删除失败");
-            }
-          } catch (error) {
-            message.error("删除失败");
-          }
-        },
-      });
-    } catch (error) {
-      message.error("获取删除影响失败");
-    }
-  };
-
-  const columns: ColumnProps<Track>[] = [
-    {
-      title: "#",
-      key: "index",
-      width: 50,
-      render: (_: any, __: Track, index: number) => {
-        return <Text>{index + 1}</Text>;
-      },
-    },
-    {
-      title: "封面",
-      key: "cover",
-      width: 60,
-      render: (_: any, record: Track) => {
-        return (
-          <div
-            style={{ position: "relative" }}
-            onClick={(e) => {
-              e.stopPropagation();
-              handlePlayTrack(record);
-            }}
-          >
-            <img
-              src={getCoverUrl(record.cover, record.id)}
-              alt={record.name}
-              style={{
-                width: "30px",
-                height: "30px",
-                objectFit: "cover",
-              }}
-            />
-            {currentTrack?.id === record.id && isPlaying && (
-              <div className={styles.playIconStatus}>
-                <PlayingIndicator />
-              </div>
-            )}
-            {currentTrack?.id === record.id && isPlaying ? (
-              <PauseCircleFilled className={styles.listPlayIcon} />
-            ) : (
-              <PlayCircleFilled className={styles.listPlayIcon} />
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      title: "标题",
-      dataIndex: "name",
-      key: "name",
-      ellipsis: true,
-      render: (text: string, record: Track) => (
-        <Text
-          type={
-            album?.type === TrackType.AUDIOBOOK
-              ? Number(record?.progress) > 0
-                ? "secondary"
-                : undefined
-              : undefined
-          }
-          strong={currentTrack?.id === record.id}
-        >
-          {text}
-        </Text>
-      ),
-    },
-    ...(album?.type === TrackType.AUDIOBOOK
-      ? [
-          {
-            title: "进度",
-            dataIndex: "progress",
-            key: "progress",
-            width: 70,
-            render: (progress: number | undefined, record: Track) => {
-              if (!progress) return <Text type="secondary">-</Text>;
-              const percentage =
-                record.duration && record.duration > 0
-                  ? Math.round((progress / record.duration) * 100)
-                  : 0;
-              return (
-                <Text type="secondary" style={{ fontSize: "10px" }}>
-                  {percentage}%
-                </Text>
-              );
-            },
-          } as ColumnProps<Track>,
-        ]
-      : []),
-    {
-      title: "时长",
-      dataIndex: "duration",
-      key: "duration",
-      width: 80,
-      render: (duration: number) => (
-        <Text type="secondary">{formatDuration(duration)}</Text>
-      ),
-    },
-    {
-      title: <MoreOutlined />,
-      key: "actions",
-      width: 30,
-      render: (_: any, record: Track) => {
-        const items: MenuProps["items"] = [
-          {
-            key: "play",
-            label: "播放",
-            icon: <PlayCircleOutlined />,
-            onClick: (info) => {
-              info.domEvent.stopPropagation();
-              handlePlayTrack(record);
-            },
-          },
-          {
-            key: "like",
-            label: (record as any).likedByUsers?.some(
-              (like: any) => like.userId === user?.id
-            )
-              ? "取消收藏"
-              : "收藏",
-            icon: (record as any).likedByUsers?.some(
-              (like: any) => like.userId === user?.id
-            ) ? (
-              <HeartFilled style={{ color: "#ff4d4f" }} />
-            ) : (
-              <HeartOutlined />
-            ),
-            onClick: (info) => {
-              info.domEvent.stopPropagation();
-              handleToggleLike(
-                info.domEvent as any,
-                record,
-                (record as any).likedByUsers?.some(
-                  (like: any) => like.userId === user?.id
-                )
-                  ? "unlike"
-                  : "like"
-              );
-            },
-          },
-          {
-            key: "add",
-            label: "添加到播放列表",
-            icon: <PlusOutlined />,
-            onClick: (info) => {
-              info.domEvent.stopPropagation();
-              openAddToPlaylistModal(info.domEvent as any, record);
-            },
-          },
-          {
-            key: "delete",
-            label: "删除",
-            icon: <DeleteOutlined />,
-            danger: true,
-            onClick: (info) => {
-              info.domEvent.stopPropagation();
-              handleDeleteSubTrack(record);
-            },
-          },
-        ];
-
-        return (
-          <Dropdown menu={{ items }} trigger={["click"]}>
-            <MoreOutlined
-              style={{ cursor: "pointer", fontSize: "20px" }}
-              onClick={(e) => e.stopPropagation()}
-            />
-          </Dropdown>
-        );
-      },
-    },
-  ];
 
   return (
     <div
@@ -452,7 +170,6 @@ const Detail: React.FC = () => {
       style={{ overflowY: "auto", height: "100%" }}
     >
       {/* Header Banner */}
-      {contextHolder}
       <div
         className={styles.banner}
         style={{
@@ -462,10 +179,7 @@ const Detail: React.FC = () => {
         <div className={styles.bannerOverlay}></div>
 
         <Flex align="center" gap={16} className={styles.bannerContent}>
-          <Avatar
-            size={50}
-            src={getCoverUrl(album, album?.id)}
-          />
+          <Avatar size={50} src={getCoverUrl(album, album?.id)} />
           <Flex vertical gap={0}>
             <Title level={4} style={{ color: "#fff", margin: 0 }}>
               {album?.name || "Unknown Album"}
@@ -507,12 +221,16 @@ const Detail: React.FC = () => {
                     <HeartFilled
                       className={styles.actionIcon}
                       style={{ color: "#ff4d4f" }}
-                      onClick={() => album && user?.id && unlikeAlbumRequest(album.id, user.id)}
+                      onClick={() =>
+                        album && user?.id && unlikeAlbumRequest(album.id, user.id)
+                      }
                     />
                   ) : (
                     <HeartOutlined
                       className={styles.actionIcon}
-                      onClick={() => album && user?.id && likeAlbum(album.id, user.id)}
+                      onClick={() =>
+                        album && user?.id && likeAlbum(album.id, user.id)
+                      }
                     />
                   )}
                   <CloudDownloadOutlined className={styles.actionIcon} />
@@ -549,42 +267,15 @@ const Detail: React.FC = () => {
             </div>
 
             {/* Track List */}
-            <Table
-              dataSource={tracks}
-              columns={columns}
-              pagination={false}
-              rowKey="id"
+            <TrackList
+              tracks={tracks}
               loading={loading}
-              rowClassName={styles.listCover}
-              onRow={(record) => ({
-                onClick: () => handlePlayTrack(record),
-                style: { cursor: "pointer" },
-              })}
+              type={album?.type}
+              onRefresh={handleRefresh}
             />
           </Col>
         </Row>
       </div>
-
-      <Modal
-        title="添加到播放列表"
-        open={isAddToPlaylistModalOpen}
-        onCancel={() => setIsAddToPlaylistModalOpen(false)}
-        footer={null}
-      >
-        <List
-          dataSource={playlists}
-          renderItem={(item) => (
-            <List.Item
-              onClick={() => handleAddToPlaylist(item.id)}
-              style={{ cursor: "pointer" }}
-              className={styles.playlistItem}
-            >
-              <Text>{item.name}</Text>
-              <Text type="secondary">{item._count?.tracks || 0} 首</Text>
-            </List.Item>
-          )}
-        />
-      </Modal>
     </div>
   );
 };
