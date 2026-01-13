@@ -2,8 +2,8 @@ import type { SearchResults as SearchResultsType } from "@soundx/services";
 import { Avatar, Empty, theme } from "antd";
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { getBaseURL } from "../../https";
 import { usePlayerStore } from "../../store/player";
+import { getCoverUrl } from "../../utils";
 import styles from "./index.module.less";
 
 interface SearchResultsProps {
@@ -149,11 +149,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({
               onClick={() => handleArtistClick(artist.id)}
             >
               <Avatar
-                src={
-                  artist.avatar
-                    ? `${getBaseURL()}${artist.avatar}`
-                    : `https://picsum.photos/seed/${artist.id}/48/48`
-                }
+                src={getCoverUrl(artist, artist.id)}
                 size={48}
                 className={styles.avatar}
                 icon={!artist.avatar && artist.name[0]}
@@ -179,11 +175,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({
               onClick={() => handleAlbumClick(album.id)}
             >
               <img
-                src={
-                  album.cover
-                    ? `${getBaseURL()}${album.cover}`
-                    : `https://picsum.photos/seed/${album.id}/48/48`
-                }
+                src={getCoverUrl(album, album.id)}
                 alt={album.name}
                 className={styles.cover}
               />

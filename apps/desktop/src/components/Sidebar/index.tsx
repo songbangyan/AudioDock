@@ -1,18 +1,15 @@
 import {
-    AppstoreOutlined,
-    CompassOutlined,
-    CustomerServiceOutlined,
-    FolderOutlined,
-    HeartOutlined,
-    PlusOutlined,
-    SoundOutlined,
-    TeamOutlined,
+  AppstoreOutlined,
+  CloudDownloadOutlined,
+  CompassOutlined,
+  CustomerServiceOutlined,
+  FolderOutlined,
+  HeartOutlined,
+  PlusOutlined,
+  SoundOutlined,
+  TeamOutlined,
 } from "@ant-design/icons";
-import {
-    createPlaylist,
-    getPlaylists,
-    type Playlist,
-} from "@soundx/services";
+import { createPlaylist, getPlaylists, type Playlist } from "@soundx/services";
 import { Form, Input, Modal, theme, Typography } from "antd";
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -123,6 +120,12 @@ const Sidebar: React.FC = () => {
       </div>
 
       <div className={styles.playlistGroup}>
+        <MenuItem
+          icon={<CloudDownloadOutlined />}
+          text="下载"
+          onClick={() => navigate("/downloads")}
+          active={isActive("/downloads")}
+        />
         <MenuItem
           icon={<HeartOutlined />}
           text="收藏"

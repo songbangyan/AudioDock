@@ -1,6 +1,7 @@
-import type { Track } from "@soundx/services";
+import type { Album, Track } from "@soundx/services";
 import { getBaseURL } from "../https";
 import { useAuthStore } from "../store/auth";
+import { useSettingsStore } from "../store/settings";
 
 interface ResolveOptions {
   cacheEnabled: boolean;
@@ -15,34 +16,73 @@ export const resolveTrackUri = async (
 ): Promise<string> => {
   const { cacheEnabled } = options;
 
+  // 1. Construct the remote URI (if path exists)
+  let remoteUri = "";
+  if (track.path) {
+    remoteUri = track.path.startsWith("http")
+      ? track.path
+      : `${getBaseURL()}${track.path}`;
+  }
+
+  // Support playback from local list even if path is missing (for legacy or offline tracks)
+  const localPath = (track as any).localPath;
+  if (!track.path && localPath) {
+    return `media://audio/${localPath}`;
+  }
+
   if (!track.path) {
-    console.warn(`[TrackResolver] Track ${track.id} has no path`);
+    console.warn(`[TrackResolver] Track ${track.id} has no path and no localPath`);
     return "";
   }
 
-  // 1. Construct the remote URI
-  const remoteUri = track.path.startsWith("http")
-    ? track.path
-    : `${getBaseURL()}${track.path}`;
-
   // 2. Check for cached version if enabled
+  const settings = useSettingsStore.getState();
+  const downloadPath = settings.download.downloadPath;
+  const albumName = track.albumEntity?.name || track.album || "Unknown Album";
+
   if (cacheEnabled && track.id && (window as any).ipcRenderer) {
     try {
-      console.log(`[TrackResolver] Checking cache for trackId: ${track.id}, path: ${track.path}`);
-      const cachedPath = await (window as any).ipcRenderer.invoke("cache:check", track.id, track.path);
+      const cachedPath = await (window as any).ipcRenderer.invoke(
+        "cache:check", 
+        track.id, 
+        track.path, 
+        downloadPath, 
+        track.type, 
+        albumName
+      );
       
       if (cachedPath) {
-        console.log(`[TrackResolver] Cache hit! URI: ${cachedPath}`);
         return cachedPath;
       }
 
       // 3. If not cached, trigger background download
       const token = useAuthStore.getState().token;
-      console.log(`[TrackResolver] Cache miss for track ${track.id}, requesting download. URL: ${remoteUri}, Token present: ${!!token}`);
-      (window as any).ipcRenderer.invoke("cache:download", track.id, remoteUri, token).then((result: string | null) => {
-        console.log(`[TrackResolver] Download task finished. Result: ${result}`);
-      }).catch((e: any) =>
-        console.error("[TrackResolver] Cache download IPC failed", e)
+      
+      // Prepare metadata for offline use
+      const metadata = {
+        id: track.id,
+        path: track.path,
+        name: track.name,
+        artist: track.artist,
+        album: albumName,
+        albumId: track.albumEntity?.id || (track as any).albumId,
+        duration: track.duration,
+        type: track.type,
+        cover: track.cover ? (track.cover.startsWith('http') ? track.cover : `${getBaseURL()}${track.cover}`) : null,
+        lyrics: track.lyrics
+      };
+
+      (window as any).ipcRenderer.invoke(
+        "cache:download", 
+        track.id, 
+        remoteUri, 
+        downloadPath, 
+        track.type, 
+        albumName, 
+        metadata, 
+        token
+      ).catch((e: any) =>
+        console.error("[TrackResolver] Unified download IPC failed", e)
       );
     } catch (error) {
       console.error("[TrackResolver] IPC communication failed", error);
@@ -56,10 +96,17 @@ export const resolveTrackUri = async (
 /**
  * Resolves artwork URI
  */
-export const resolveArtworkUri = (track: Track): string | undefined => {
-  if (!track.cover) return undefined
+export const resolveArtworkUri = (item: Track | Album | string): string | undefined => {
+  const cover = typeof item === "string" ? item : item?.cover;
+  if (!cover) return undefined;
   
-  return track.cover.startsWith("http")
-    ? track.cover
-    : `${getBaseURL()}${track.cover}`;
+  let uri: string;
+  if (cover.startsWith("media://")) {
+    uri = cover;
+  } else {
+    uri = cover.startsWith("http")
+      ? cover
+      : `${getBaseURL()}${cover}`;
+  }
+  return uri;
 };

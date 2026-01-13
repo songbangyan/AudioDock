@@ -1,44 +1,44 @@
 import Icon, {
-    BackwardOutlined, // Added as per instruction
-    DeliveredProcedureOutlined,
-    DownOutlined,
-    FontColorsOutlined,
-    ForwardOutlined,
-    HeartFilled,
-    HeartOutlined,
-    OrderedListOutlined,
-    PauseCircleFilled,
-    PlayCircleFilled,
-    SoundOutlined,
-    StepBackwardOutlined,
-    StepForwardOutlined,
-    TeamOutlined,
+  BackwardOutlined, // Added as per instruction
+  DeliveredProcedureOutlined,
+  DownOutlined,
+  FontColorsOutlined,
+  ForwardOutlined,
+  HeartFilled,
+  HeartOutlined,
+  OrderedListOutlined,
+  PauseCircleFilled,
+  PlayCircleFilled,
+  SoundOutlined,
+  StepBackwardOutlined,
+  StepForwardOutlined,
+  TeamOutlined,
 } from "@ant-design/icons";
 import {
-    addToHistory,
-    addTrackToPlaylist,
-    deleteTrack,
-    getDeletionImpact,
-    getLatestHistory,
-    getPlaylists,
-    type Playlist,
+  addToHistory,
+  addTrackToPlaylist,
+  deleteTrack,
+  getDeletionImpact,
+  getLatestHistory,
+  getPlaylists,
+  type Playlist,
 } from "@soundx/services";
 import {
-    Avatar, // Added
-    Button,
-    Drawer,
-    Flex,
-    InputNumber,
-    List, // Rename to avoid conflict if needed, though useMessage is typically context. Context is safer.
-    Modal,
-    notification, // Added
-    Popover,
-    Slider,
-    Space, // Added
-    Tabs,
-    theme,
-    Tooltip,
-    Typography,
+  Avatar, // Added
+  Button,
+  Drawer,
+  Flex,
+  InputNumber,
+  List, // Rename to avoid conflict if needed, though useMessage is typically context. Context is safer.
+  Modal,
+  notification, // Added
+  Popover,
+  Slider,
+  Space, // Added
+  Tabs,
+  theme,
+  Tooltip,
+  Typography,
 } from "antd";
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -50,9 +50,9 @@ import SinglecycleOutlined from "../../assets/singlecycle.svg?react";
 import { useMessage } from "../../context/MessageContext";
 import { useMediaSession } from "../../hooks/useMediaSession";
 import { getBaseURL } from "../../https";
-import { type Device, type Track, TrackType } from "../../models";
+import { type Album, type Device, type Track, TrackType } from "../../models";
 import { socketService } from "../../services/socket";
-import { resolveTrackUri } from "../../services/trackResolver";
+import { resolveArtworkUri, resolveTrackUri } from "../../services/trackResolver";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { useSettingsStore } from "../../store/settings";
@@ -142,12 +142,7 @@ const Player: React.FC = () => {
     return (saved as "off" | "time" | "count" | "current") || "off";
   });
   const cacheEnabled = useSettingsStore((state) => state.download.cacheEnabled);
-  const [resolvedUri, setResolvedUri] = useState<string | undefined>(() => {
-    if (!currentTrack?.path) return undefined;
-    return currentTrack.path.startsWith("http")
-      ? currentTrack.path
-      : `${getBaseURL()}${currentTrack.path}`;
-  });
+  const [resolvedUri, setResolvedUri] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (!currentTrack) {
@@ -155,10 +150,29 @@ const Player: React.FC = () => {
       return;
     }
 
-    // Resolve for cache (will overwrite resolvedUri if cached)
+    // 1. Determine initial URI synchronously to avoid playing previous song
+    let initialUri = "";
+    if (currentTrack.path) {
+      initialUri = currentTrack.path.startsWith("http")
+        ? currentTrack.path
+        : `${getBaseURL()}${currentTrack.path}`;
+      
+      if (!initialUri.startsWith("http")) {
+        initialUri = `${window.location.origin}${initialUri}`;
+      }
+    } else if ((currentTrack as any).localPath) {
+      initialUri = `media://audio/${(currentTrack as any).localPath}`;
+    }
+
+    setResolvedUri(initialUri || undefined);
+
+    // 2. Resolve for cache (will upgrade to media:// if cached)
     resolveTrackUri(currentTrack, { cacheEnabled }).then((uri) => {
-      // Only update if we still have a track and the URI changed
-      if (uri) setResolvedUri(uri);
+      // Only update if we still have the same track
+      const state = usePlayerStore.getState();
+      if (uri && state.currentTrack?.id === currentTrack.id) {
+         setResolvedUri(uri);
+      }
     });
   }, [currentTrack?.id, cacheEnabled]);
   const [sleepTimerEndTime, setSleepTimerEndTime] = useState<number | null>(
@@ -253,7 +267,7 @@ const Player: React.FC = () => {
                     >
                       {history.track.cover && (
                         <img
-                          src={`${getCoverUrl(history.track.cover)}`}
+                          src={`${getCoverUrl(history.track)}`}
                           alt="cover"
                           style={{
                             width: 40,
@@ -512,28 +526,41 @@ const Player: React.FC = () => {
     }
   }, [volume]);
 
-  // Handle play/pause and initial seek
+  // Handle play/pause and source changes
   useEffect(() => {
-    if (audioRef.current && resolvedUri) {
-      // Ensure the audio element's src is up to date with our resolved URI
-      // HTMLAudioElement.src returns a full URL, so we just set it if different
-      if (!audioRef.current.src.includes(resolvedUri)) {
-        audioRef.current.src = resolvedUri;
-      }
+    const audio = audioRef.current;
+    if (!audio || !resolvedUri) return;
 
-      if (isPlaying) {
-        audioRef.current.play().catch((e) => {
-          console.error("Playback failed", e);
+    const updateAndPlay = async () => {
+      try {
+        const isNewSource = !audio.src.includes(resolvedUri);
+
+        if (isNewSource) {
+          audio.pause();
+          audio.src = resolvedUri;
+          audio.load();
+        }
+
+        if (isPlaying && audio.paused) {
+          await audio.play();
+        } else if (!isPlaying && !audio.paused) {
+          audio.pause();
+        }
+
+        // Apply progress if significantly different
+        if (Math.abs(audio.currentTime - currentTime) > 2) {
+          audio.currentTime = currentTime;
+        }
+      } catch (e: any) {
+        // AbortError is normal when src changes while play() is pending
+        if (e.name !== 'AbortError') {
+          console.error("[Player] Playback error:", e);
           pause();
-        });
-      } else {
-        audioRef.current.pause();
+        }
       }
+    };
 
-      if (Math.abs(audioRef.current.currentTime - currentTime) > 2) {
-        audioRef.current.currentTime = currentTime;
-      }
-    }
+    updateAndPlay();
   }, [isPlaying, resolvedUri]);
 
   useEffect(() => {
@@ -915,10 +942,9 @@ const Player: React.FC = () => {
     }
   };
 
-  const getCoverUrl = (path?: string | null, id?: number) => {
-    return path
-      ? `${getBaseURL()}${path}`
-      : `https://picsum.photos/seed/${id}/300/300`;
+  const getCoverUrl = (item?: Track | Album | null) => {
+    if (!item) return `https://picsum.photos/seed/0/300/300`;
+    return resolveArtworkUri(item) || `https://picsum.photos/seed/${item.id}/300/300`;
   };
 
   // Skip forward 15 seconds
@@ -1166,16 +1192,16 @@ const Player: React.FC = () => {
         onCanPlay={() => setIsLoading(false)}
       />
 
-      {/* Song Info */}
       <div
         className={styles.songInfo}
         onClick={() => setIsFullPlayerVisible(true)}
       >
         <div className={styles.coverWrapper}>
           <img
-            src={getCoverUrl(currentTrack?.cover, currentTrack?.id)}
+            src={getCoverUrl(currentTrack)}
             alt="cover"
             className={styles.coverImage}
+            onError={(e) => console.error(`[Player] Mini Cover Load Error: ${currentTrack?.cover}`, e)}
           />
         </div>
         <div className={styles.songDetails}>
@@ -1565,9 +1591,10 @@ const Player: React.FC = () => {
 
           <Flex vertical align="center" gap={20}>
             <img
-              src={getCoverUrl(currentTrack?.cover, currentTrack?.id)}
+              src={getCoverUrl(currentTrack)}
               alt="Current Cover"
               className={styles.fullPlayerCover}
+              onError={(e) => console.error(`[Player] Full Cover Load Error: ${currentTrack?.cover}`, e)}
             />
 
             <Flex
@@ -1660,10 +1687,7 @@ const Player: React.FC = () => {
                   }}
                 >
                   <img
-                    src={getCoverUrl(
-                      currentTrack?.artistEntity?.avatar,
-                      currentTrack?.id
-                    )}
+                    src={getCoverUrl({ cover: currentTrack?.artistEntity?.avatar, id: currentTrack?.id, name: currentTrack?.artist } as any)}
                     alt="Current Cover"
                     style={{
                       width: "15px",
@@ -1686,10 +1710,7 @@ const Player: React.FC = () => {
                   }}
                 >
                   <img
-                    src={getCoverUrl(
-                      currentTrack?.albumEntity?.cover,
-                      currentTrack?.id
-                    )}
+                    src={getCoverUrl({ cover: currentTrack?.albumEntity?.cover, id: currentTrack?.id, name: currentTrack?.album } as any)}
                     alt="Current Cover"
                     style={{
                       width: "15px",

@@ -4,9 +4,9 @@ import { useAuthStore } from "../store/auth";
 
 // Get base URL based on environment
 export function getBaseURL(): string {
-  // In development, use proxy
+  // In development, return absolute backend URL
   if (import.meta.env.DEV) {
-    return "/api";
+    return "http://localhost:3000";
   }
 
   // In production, use server address from localStorage or default

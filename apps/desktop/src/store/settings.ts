@@ -97,10 +97,15 @@ export const useSettingsStore = create<SettingsState>()(
           (window as any).ipcRenderer.send("lyric:settings-update", { [key]: value });
         }
       },
-      updateDownload: (key, value) =>
+      updateDownload: (key, value) => {
         set((state) => ({
           download: { ...state.download, [key]: value },
-        })),
+        }));
+        
+        if (key === 'downloadPath' && (window as any).ipcRenderer) {
+          (window as any).ipcRenderer.send('settings:update-download-path', value);
+        }
+      },
     }),
     {
       name: 'soundx-settings',

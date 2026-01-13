@@ -10,8 +10,8 @@ import { Dropdown, Skeleton, theme, Typography } from "antd";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMessage } from "../../context/MessageContext";
-import { getBaseURL } from "../../https";
 import type { Album, Track } from "../../models";
+import { resolveArtworkUri } from "../../services/trackResolver";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import styles from "./index.module.less";
@@ -150,9 +150,7 @@ const Cover: CoverComponent = ({ item, size, isTrack = false }) => {
       <div className={styles.imageWrapper}>
         <img
           src={
-            item.cover
-              ? `${getBaseURL()}${item.cover}`
-              : `https://picsum.photos/seed/${item.id}/300/300`
+            resolveArtworkUri(item) || `https://picsum.photos/seed/${item.id}/300/300`
           }
           alt={item.name}
           className={styles.image}

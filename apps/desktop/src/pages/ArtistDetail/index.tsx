@@ -1,14 +1,14 @@
 import { PauseCircleFilled, PlayCircleFilled } from "@ant-design/icons";
 import { getAlbumsByArtist, getArtistById, getCollaborativeAlbumsByArtist, getTracksByArtist } from "@soundx/services";
 import {
-    Avatar,
-    Col,
-    Empty,
-    Flex,
-    Row,
-    Skeleton,
-    Table,
-    Typography,
+  Avatar,
+  Col,
+  Empty,
+  Flex,
+  Row,
+  Skeleton,
+  Table,
+  Typography,
 } from "antd";
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";

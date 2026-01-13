@@ -1,42 +1,41 @@
 import {
-  CaretRightOutlined,
-  CloudDownloadOutlined,
-  DeleteOutlined,
-  HeartFilled,
-  HeartOutlined,
-  MoreOutlined,
-  PauseCircleFilled,
-  PlayCircleFilled,
-  PlayCircleOutlined,
-  PlusOutlined,
-  SearchOutlined,
-  SortAscendingOutlined,
-  SortDescendingOutlined
+    CaretRightOutlined,
+    CloudDownloadOutlined,
+    DeleteOutlined,
+    HeartFilled,
+    HeartOutlined,
+    MoreOutlined,
+    PauseCircleFilled,
+    PlayCircleFilled,
+    PlayCircleOutlined,
+    PlusOutlined,
+    SearchOutlined,
+    SortAscendingOutlined,
+    SortDescendingOutlined
 } from "@ant-design/icons";
 import {
-  addTrackToPlaylist, deleteTrack, getAlbumById, getAlbumTracks, getDeletionImpact, getPlaylists,
-  type Playlist, toggleAlbumLike, unlikeAlbum
+    addTrackToPlaylist, deleteTrack, getAlbumById, getAlbumTracks, getDeletionImpact, getPlaylists,
+    type Playlist, toggleAlbumLike, unlikeAlbum
 } from "@soundx/services";
 import { useRequest } from "ahooks";
 import {
-  Avatar,
-  Col,
-  Dropdown,
-  Flex,
-  Input,
-  List,
-  type MenuProps,
-  Modal,
-  Row,
-  Table,
-  theme,
-  Typography,
+    Avatar,
+    Col,
+    Dropdown,
+    Flex,
+    Input,
+    List,
+    type MenuProps,
+    Modal,
+    Row,
+    Table,
+    theme,
+    Typography,
 } from "antd";
 import type { ColumnProps } from "antd/es/table";
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMessage } from "../../context/MessageContext";
-import { getBaseURL } from "../../https";
 import { type Album, type Track, TrackType } from "../../models";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
@@ -457,7 +456,7 @@ const Detail: React.FC = () => {
       <div
         className={styles.banner}
         style={{
-          backgroundImage: `url(${album?.cover ? `${getBaseURL()}${album.cover}` : "https://picsum.photos/seed/podcast/1200/400"})`,
+          backgroundImage: `url(${getCoverUrl(album, album?.id)})`,
         }}
       >
         <div className={styles.bannerOverlay}></div>
@@ -465,11 +464,7 @@ const Detail: React.FC = () => {
         <Flex align="center" gap={16} className={styles.bannerContent}>
           <Avatar
             size={50}
-            src={
-              album?.cover
-                ? `${getBaseURL()}${album.cover}`
-                : "https://api.dicebear.com/7.x/avataaars/svg?seed=Ken"
-            }
+            src={getCoverUrl(album, album?.id)}
           />
           <Flex vertical gap={0}>
             <Title level={4} style={{ color: "#fff", margin: 0 }}>

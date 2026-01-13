@@ -1,6 +1,6 @@
 import { ipcMain, app, dialog, shell, net, screen, BrowserWindow, protocol, Menu, Tray, nativeImage } from "electron";
 import fs from "fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import os from "os";
 import path from "path";
 import { Readable } from "stream";
@@ -39,65 +39,101 @@ ipcMain.handle("open-url", (event, url) => {
   console.log("Opening URL:", url);
   return shell.openExternal(url);
 });
-const CACHE_DIR = path.join(app.getPath("userData"), "audio_cache");
-if (!fs.existsSync(CACHE_DIR)) {
-  fs.mkdirSync(CACHE_DIR, { recursive: true });
-}
-try {
-  const stats = fs.statSync(CACHE_DIR);
-  console.log(`[Main] Cache directory: ${CACHE_DIR}`);
-  fs.accessSync(CACHE_DIR, fs.constants.W_OK);
-  console.log(`[Main] Cache directory is writable`);
-} catch (e) {
-  console.error(`[Main] Cache directory error:`, e);
-}
-ipcMain.handle("cache:check", async (event, trackId, originalPath) => {
-  const extension = path.extname(originalPath) || ".mp3";
-  const filePath = path.join(CACHE_DIR, `${trackId}${extension}`);
-  const exists = fs.existsSync(filePath) && fs.statSync(filePath).size > 0;
-  console.log(`[Main] Cache check for ${trackId}: ${exists ? "HIT" : "MISS"} (${filePath})`);
-  return exists ? `media://${trackId}${extension}` : null;
+ipcMain.handle("open-directory", async (event, folderPath) => {
+  const fullPath = folderPath.replace(/^~/, os.homedir());
+  if (!fs.existsSync(fullPath)) {
+    try {
+      fs.mkdirSync(fullPath, { recursive: true });
+    } catch (e) {
+      console.error("Failed to create directory:", e);
+      return "Directory does not exist and could not be created";
+    }
+  }
+  return shell.openPath(fullPath);
 });
+const CACHE_DIR = path.join(app.getPath("userData"), "audio_cache");
+if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+const getTrackAudioLocalPath = (basePath, type, albumName, originalPath) => {
+  const decodedPath = decodeURIComponent(originalPath);
+  const fileName = path.basename(decodedPath);
+  const subFolder = type === "MUSIC" ? "music" : path.join("audio", albumName.replace(/[/\\?%*:|"<>]/g, "-"));
+  return {
+    filePath: path.join(basePath.replace(/^~/, os.homedir()), subFolder, fileName),
+    relPath: path.join(subFolder, fileName).replace(/\\/g, "/")
+  };
+};
 const activeDownloads = /* @__PURE__ */ new Map();
-ipcMain.handle("cache:download", async (event, trackId, url, token) => {
+ipcMain.handle("cache:check", async (event, trackId, originalPath, downloadPath, type, albumName) => {
+  const metaPath = path.join(CACHE_DIR, `${trackId}.json`);
+  if (!fs.existsSync(metaPath)) return null;
+  try {
+    const metadata = JSON.parse(fs.readFileSync(metaPath, "utf8"));
+    if (!metadata.localPath) return null;
+    const filePath = path.join(downloadPath.replace(/^~/, os.homedir()), metadata.localPath);
+    if (fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
+      return `media://audio/${metadata.localPath}`;
+    }
+  } catch (e) {
+    console.error("[Main] cache:check error", e);
+  }
+  return null;
+});
+ipcMain.handle("cache:download", async (event, trackId, url, downloadPath, type, albumName, metadata, token) => {
   if (activeDownloads.has(trackId)) return activeDownloads.get(trackId);
   const downloadPromise = (async () => {
     let tempPath = "";
     try {
-      const extension = path.extname(new URL(url).pathname) || ".mp3";
-      const filePath = path.join(CACHE_DIR, `${trackId}${extension}`);
+      const { filePath, relPath } = getTrackAudioLocalPath(downloadPath, type, albumName, new URL(url).pathname);
+      const dirPath = path.dirname(filePath);
+      if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
       tempPath = filePath + ".tmp";
-      if (fs.existsSync(filePath)) return `media://${trackId}${extension}`;
-      console.log(`[Main] Starting cache download for track ${trackId}: ${url}`);
-      const headers = {
-        "User-Agent": "SoundX-Desktop"
-      };
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
+      if (fs.existsSync(filePath)) {
+        metadata.localPath = relPath;
+        fs.writeFileSync(path.join(CACHE_DIR, `${trackId}.json`), JSON.stringify(metadata, null, 2));
+        return `media://audio/${relPath}`;
       }
+      console.log(`[Main] Starting split download for track ${trackId}: ${url}`);
+      const headers = { "User-Agent": "SoundX-Desktop" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
       const response = await net.fetch(url, { headers });
-      if (!response.ok) {
-        console.error(`[Main] Fetch failed for track ${trackId}: ${response.status} ${response.statusText}`);
-        throw new Error(`Failed to fetch: ${response.statusText}`);
-      }
+      if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
       const body = response.body;
-      if (!body) throw new Error("Response body is empty");
-      const fileStream = fs.createWriteStream(tempPath);
-      await pipeline(Readable.fromWeb(body), fileStream);
-      if (fs.existsSync(tempPath) && fs.statSync(tempPath).size > 0) {
-        fs.renameSync(tempPath, filePath);
-        console.log(`[Main] Successfully cached track ${trackId} to ${filePath} (Size: ${fs.statSync(filePath).size} bytes)`);
-      } else {
-        throw new Error("Downloaded file is empty");
-      }
-      return `media://${trackId}${extension}`;
-    } catch (error) {
-      console.error(`[Main] Cache download failed for track ${trackId}:`, error);
-      if (tempPath && fs.existsSync(tempPath)) {
+      if (!body) throw new Error("Body empty");
+      await pipeline(Readable.fromWeb(body), fs.createWriteStream(tempPath));
+      fs.renameSync(tempPath, filePath);
+      if (metadata.cover) {
         try {
-          fs.unlinkSync(tempPath);
-        } catch (e) {
+          const coverUrl = metadata.cover;
+          console.log(`[Main] Downloading cover: ${coverUrl}`);
+          const coverExt = path.extname(new URL(coverUrl).pathname) || ".jpg";
+          const coverName = `${trackId}_cover${coverExt}`;
+          const cRes = await net.fetch(coverUrl);
+          if (cRes.ok && cRes.body) {
+            const contentType = cRes.headers.get("content-type");
+            if (contentType && contentType.includes("text/html")) {
+              throw new Error("Received HTML instead of image (likely dev server fallback)");
+            }
+            const buffer = await cRes.arrayBuffer();
+            const snippet = Buffer.from(buffer.slice(0, 10)).toString();
+            if (snippet.toLowerCase().includes("<!doc") || snippet.toLowerCase().includes("<html")) {
+              throw new Error("Response content looks like HTML");
+            }
+            fs.writeFileSync(path.join(CACHE_DIR, coverName), Buffer.from(buffer));
+            metadata.cover = `media://cover/${coverName}`;
+          }
+        } catch (ce) {
+          console.error("[Main] Cover download failed:", ce);
         }
+      }
+      metadata.localPath = relPath;
+      fs.writeFileSync(path.join(CACHE_DIR, `${trackId}.json`), JSON.stringify(metadata, null, 2));
+      console.log(`[Main] Successfully cached/downloaded track ${trackId}`);
+      return `media://audio/${relPath}`;
+    } catch (error) {
+      console.error(`[Main] Split download failed for ${trackId}:`, error);
+      if (tempPath && fs.existsSync(tempPath)) try {
+        fs.unlinkSync(tempPath);
+      } catch (e) {
       }
       return null;
     } finally {
@@ -107,34 +143,34 @@ ipcMain.handle("cache:download", async (event, trackId, url, token) => {
   activeDownloads.set(trackId, downloadPromise);
   return downloadPromise;
 });
-ipcMain.handle("cache:get-size", async () => {
+ipcMain.handle("cache:list", async (event, downloadPath, type) => {
   try {
-    if (!fs.existsSync(CACHE_DIR)) return 0;
+    const results = [];
+    if (!fs.existsSync(CACHE_DIR)) return [];
     const files = fs.readdirSync(CACHE_DIR);
-    let totalSize = 0;
     for (const file of files) {
-      const stats = fs.statSync(path.join(CACHE_DIR, file));
-      totalSize += stats.size;
-    }
-    return totalSize;
-  } catch (error) {
-    console.error("[Main] Failed to get cache size:", error);
-    return 0;
-  }
-});
-ipcMain.handle("cache:clear", async () => {
-  try {
-    if (fs.existsSync(CACHE_DIR)) {
-      const files = fs.readdirSync(CACHE_DIR);
-      for (const file of files) {
-        fs.unlinkSync(path.join(CACHE_DIR, file));
+      if (file.endsWith(".json")) {
+        try {
+          const data = JSON.parse(fs.readFileSync(path.join(CACHE_DIR, file), "utf8"));
+          if (data.type === type) {
+            const fullAudioPath = path.join(downloadPath.replace(/^~/, os.homedir()), data.localPath);
+            if (fs.existsSync(fullAudioPath)) {
+              results.push(data);
+            }
+          }
+        } catch (e) {
+        }
       }
     }
-    return true;
+    return results;
   } catch (error) {
-    console.error("[Main] Failed to clear cache:", error);
-    return false;
+    console.error("[Main] cache:list failed", error);
+    return [];
   }
+});
+let currentDownloadPath = "";
+ipcMain.on("settings:update-download-path", (event, path2) => {
+  currentDownloadPath = path2;
 });
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
 process.env.DIST = path.join(__dirname$1, "../dist");
@@ -433,7 +469,8 @@ protocol.registerSchemesAsPrivileged([
       standard: true,
       secure: true,
       supportFetchAPI: true,
-      bypassCSP: false
+      bypassCSP: false,
+      corsEnabled: true
     }
   },
   {
@@ -443,30 +480,92 @@ protocol.registerSchemesAsPrivileged([
       secure: true,
       supportFetchAPI: true,
       bypassCSP: true,
-      // Allow media loading
+      corsEnabled: true,
+      // often needed for media elements
       stream: true
     }
   }
 ]);
 app.whenReady().then(() => {
+  console.log(`[Main] App is ready.`);
+  console.log(`[Main] CACHE_DIR set to: ${CACHE_DIR}`);
+  console.log(`[Main] Initial Download Path: ${currentDownloadPath || "Default (app/downloads)"}`);
   protocol.handle("app", (request) => {
-    const url = new URL(request.url);
-    const pathname = decodeURIComponent(url.pathname);
-    let relativePath = pathname === "/" ? "index.html" : pathname;
-    if (relativePath.startsWith("/")) relativePath = relativePath.slice(1);
-    return net.fetch(`file://${path.join(process.env.DIST, relativePath)}`);
-  });
-  protocol.handle("media", (request) => {
-    const url = new URL(request.url);
-    let fileName = decodeURIComponent(url.host + url.pathname);
-    if (fileName.endsWith("/")) fileName = fileName.slice(0, -1);
-    const filePath = path.join(CACHE_DIR, fileName);
-    console.log(`[Main] Media protocol serving: ${filePath}`);
-    if (!fs.existsSync(filePath)) {
-      console.warn(`[Main] Media file not found: ${filePath}`);
-      return new Response("File Not Found", { status: 404 });
+    try {
+      const url = new URL(request.url);
+      let pathname = decodeURIComponent(url.pathname);
+      if (pathname.startsWith("/")) pathname = pathname.slice(1);
+      const filePath = path.join(process.env.DIST, pathname || "index.html");
+      console.log(`[Main] App Protocol: url=${request.url} -> filePath=${filePath}`);
+      return net.fetch(pathToFileURL(filePath).href);
+    } catch (e) {
+      console.error("[Main] App protocol error:", e);
+      return new Response("Internal error", { status: 500 });
     }
-    return net.fetch(`file://${filePath}`);
+  });
+  protocol.handle("media", async (request) => {
+    try {
+      const url = new URL(request.url);
+      const host = url.host;
+      let pathname = url.pathname;
+      if (pathname.startsWith("/")) pathname = pathname.slice(1);
+      const decodedPathname = decodeURIComponent(pathname);
+      const getPath = (h, p) => {
+        if (h === "audio") {
+          const base = currentDownloadPath || path.join(app.getPath("userData"), "downloads");
+          return path.join(base.replace(/^~/, os.homedir()), p);
+        } else if (h === "cover" || h === "metadata") {
+          return path.join(CACHE_DIR, p);
+        } else {
+          const base = currentDownloadPath || path.join(app.getPath("userData"), "audio_cache");
+          return path.join(base.replace(/^~/, os.homedir()), h, p);
+        }
+      };
+      let filePath = getPath(host, decodedPathname);
+      if (!fs.existsSync(filePath)) {
+        const altCachePath = path.join(CACHE_DIR, decodedPathname || host);
+        if (fs.existsSync(altCachePath)) {
+          console.log(`[Main] File found via CACHEFallback: ${altCachePath}`);
+          filePath = altCachePath;
+        }
+      }
+      const exists = fs.existsSync(filePath);
+      console.log(`[Main] Media Protocol: url=${request.url} -> host=${host}, path=${decodedPathname} -> filePath=${filePath} (exists: ${exists})`);
+      if (!exists) {
+        return new Response("File Not Found", { status: 404 });
+      }
+      const ext = path.extname(filePath).toLowerCase();
+      let contentType = "application/octet-stream";
+      if (ext === ".jpg" || ext === ".jpeg") contentType = "image/jpeg";
+      else if (ext === ".png") contentType = "image/png";
+      else if (ext === ".mp3") contentType = "audio/mpeg";
+      else if (ext === ".flac") contentType = "audio/flac";
+      else if (ext === ".json") contentType = "application/json";
+      if (host === "cover" || host === "metadata" || ext === ".json" || ext === ".jpeg" || ext === ".jpg" || ext === ".png") {
+        const fileData = fs.readFileSync(filePath);
+        return new Response(fileData, {
+          headers: {
+            "Content-Type": contentType,
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "no-cache"
+          }
+        });
+      }
+      const fileUrl = pathToFileURL(filePath).href;
+      const response = await net.fetch(fileUrl);
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: {
+          "Content-Type": contentType,
+          "Access-Control-Allow-Origin": "*",
+          "Cache-Control": "no-cache"
+        }
+      });
+    } catch (e) {
+      console.error("[Main] Protocol handle error:", e);
+      return new Response("Internal error", { status: 500 });
+    }
   });
   createWindow();
   createTray();
