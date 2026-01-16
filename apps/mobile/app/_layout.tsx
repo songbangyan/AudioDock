@@ -34,7 +34,8 @@ function RootLayoutNav() {
       (segments[0] as string) === "search" ||
       (segments[0] as string) === "settings" ||
       (segments[0] as string) === "playlist" ||
-      (segments[0] as string) === "folder";
+      (segments[0] as string) === "folder" ||
+      (segments[0] as string) === "admin";
 
     if (!token && inAuthGroup) {
       router.replace("/login");
@@ -72,6 +73,13 @@ function RootLayoutNav() {
         />
         <Stack.Screen
           name="settings"
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+          }}
+        />
+        <Stack.Screen
+          name="admin"
           options={{
             headerShown: false,
             animation: "slide_from_right",

@@ -23,7 +23,14 @@ export default function SettingsScreen() {
   const { colors, theme, toggleTheme } = useTheme();
   const { mode, setMode } = usePlayMode();
   const { logout, user } = useAuth();
-  const { acceptRelay, acceptSync, cacheEnabled, autoOrientation, autoTheme, updateSetting } = useSettings();
+  const {
+    acceptRelay,
+    acceptSync,
+    cacheEnabled,
+    autoOrientation,
+    autoTheme,
+    updateSetting,
+  } = useSettings();
   const [cacheSize, setCacheSize] = React.useState<string>("0 B");
 
   const fetchCacheSize = async () => {
@@ -53,7 +60,9 @@ export default function SettingsScreen() {
   ) => (
     <View style={[styles.settingRow, { borderBottomColor: colors.border }]}>
       <View style={styles.settingInfo}>
-        <Text style={[styles.settingLabel, { color: colors.text }]}>{label}</Text>
+        <Text style={[styles.settingLabel, { color: colors.text }]}>
+          {label}
+        </Text>
         <Text style={[styles.settingDescription, { color: colors.secondary }]}>
           {description}
         </Text>
@@ -70,7 +79,10 @@ export default function SettingsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
           <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>设置</Text>
@@ -79,8 +91,43 @@ export default function SettingsScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.primary }]}>通用</Text>
-          
+            <Text style={[styles.sectionTitle, { color: colors.primary }]}>
+              账户
+            </Text>
+
+            {user?.is_admin && (
+              <TouchableOpacity
+                style={[
+                  styles.settingRow,
+                  { borderBottomColor: colors.border },
+                ]}
+                onPress={() => router.push("/admin")}
+              >
+                <View style={styles.settingInfo}>
+                  <Text style={[styles.settingLabel, { color: colors.text }]}>
+                    管理后台
+                  </Text>
+                  <Text
+                    style={[
+                      styles.settingDescription,
+                      { color: colors.secondary },
+                    ]}
+                  >
+                    用户与系统设置
+                  </Text>
+                </View>
+                <Ionicons
+                  name="settings-outline"
+                  size={20}
+                  color={colors.secondary}
+                />
+              </TouchableOpacity>
+            )}
+
+          <Text style={[styles.sectionTitle, { color: colors.primary, marginTop: 20 }]}>
+            通用
+          </Text>
+
           {renderSettingRow(
             "跟随系统主题",
             "开启后将根据系统设置自动切换浅色/深色模式",
@@ -132,28 +179,29 @@ export default function SettingsScreen() {
             (val) => updateSetting("cacheEnabled", val)
           )}
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.settingRow, { borderBottomColor: colors.border }]}
             onPress={() => {
-              Alert.alert(
-                "清除缓存",
-                "确定要清除所有本地音频缓存吗？",
-                [
-                  { text: "取消", style: "cancel" },
-                  { text: "确定", onPress: async () => {
+              Alert.alert("清除缓存", "确定要清除所有本地音频缓存吗？", [
+                { text: "取消", style: "cancel" },
+                {
+                  text: "确定",
+                  onPress: async () => {
                     await clearCache();
                     await fetchCacheSize();
                     Alert.alert("已清除", "本地缓存已清空");
-                  }}
-                ]
-              );
+                  },
+                },
+              ]);
             }}
           >
             <View style={styles.settingInfo}>
               <Text style={[styles.settingLabel, { color: colors.text }]}>
                 清除缓存 ({cacheSize})
               </Text>
-              <Text style={[styles.settingDescription, { color: colors.secondary }]}>
+              <Text
+                style={[styles.settingDescription, { color: colors.secondary }]}
+              >
                 释放本地存储空间
               </Text>
             </View>
@@ -162,25 +210,8 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.primary }]}>账户</Text>
-          
-          {user?.is_admin && (
-             <TouchableOpacity 
-                style={[styles.settingRow, { borderBottomColor: colors.border }]}
-                onPress={() => router.push("/admin" as any)}
-              >
-                <View style={styles.settingInfo}>
-                  <Text style={[styles.settingLabel, { color: colors.text }]}>管理后台</Text>
-                  <Text style={[styles.settingDescription, { color: colors.secondary }]}>
-                    用户与系统设置
-                  </Text>
-                </View>
-                <Ionicons name="settings-outline" size={20} color={colors.secondary} />
-              </TouchableOpacity>
-          )}
-
-          <TouchableOpacity 
-            style={styles.logoutButton} 
+          <TouchableOpacity
+            style={styles.logoutButton}
             onPress={() => {
               logout();
               router.replace("/login");
@@ -192,7 +223,7 @@ export default function SettingsScreen() {
 
         <View style={styles.footer}>
           <Text style={[styles.versionText, { color: colors.secondary }]}>
-            SoundX Mobile v1.0.0
+            AudioBook Mobile v1.0.0
           </Text>
         </View>
       </ScrollView>

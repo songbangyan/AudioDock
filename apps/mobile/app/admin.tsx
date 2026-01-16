@@ -1,11 +1,10 @@
-
 import { Ionicons } from "@expo/vector-icons";
 import {
   deleteAdminUser,
   getAdminUsers,
   getRegistrationSetting,
   setAdminUserExpiration,
-  toggleRegistrationSetting
+  toggleRegistrationSetting,
 } from "@soundx/services"; // Assuming these are exported
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -26,343 +25,389 @@ import { useTheme } from "../src/context/ThemeContext";
 import { User } from "../src/models";
 
 export default function AdminScreen() {
-    const router = useRouter();
-    const insets = useSafeAreaInsets();
-    const { colors } = useTheme();
-    const [users, setUsers] = useState<User[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [registrationAllowed, setRegistrationAllowed] = useState(true);
-    const [settingLoading, setSettingLoading] = useState(false);
-    
-    // modal states
-    const [modalVisible, setModalVisible] = useState(false);
-    const [selectedUser, setSelectedUser] = useState<User | null>(null);
-    const [expirationDays, setExpirationDays] = useState<string>("");
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [registrationAllowed, setRegistrationAllowed] = useState(true);
+  const [settingLoading, setSettingLoading] = useState(false);
 
-    const fetchUsers = async () => {
-        setLoading(true);
-        try {
-            const res = await getAdminUsers();
+  // modal states
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [expirationDays, setExpirationDays] = useState<string>("");
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const res = await getAdminUsers();
+      if (res.code === 200) {
+        setUsers(res.data);
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to load users");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSettings = async () => {
+    setSettingLoading(true);
+    try {
+      const res = await getRegistrationSetting();
+      if (res.code === 200) {
+        setRegistrationAllowed(res.data);
+      }
+    } catch (error) {
+      // ignore
+    } finally {
+      setSettingLoading(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchUsers();
+      fetchSettings();
+    }, [])
+  );
+
+  const handleToggleRegistration = async (val: boolean) => {
+    setSettingLoading(true); // crude optimistic update
+    const res = await toggleRegistrationSetting(val);
+    if (res.code === 200) {
+      setRegistrationAllowed(val);
+    } else {
+      Alert.alert("Error", res.message);
+    }
+    setSettingLoading(false);
+  };
+
+  const handleDeleteUser = (id: number) => {
+    Alert.alert(
+      "确定删除",
+      "确定删除该用户吗？删除之后数据无法恢复",
+      [
+        { text: "取消", style: "cancel" },
+        {
+          text: "删除",
+          style: "destructive",
+          onPress: async () => {
+            const res = await deleteAdminUser(id);
             if (res.code === 200) {
-                setUsers(res.data);
+              Alert.alert("成功", "用户删除成功");
+              fetchUsers();
+            } else {
+              Alert.alert("失败", res.message);
             }
-        } catch (error) {
-            Alert.alert("Error", "Failed to load users");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchSettings = async () => {
-        setSettingLoading(true);
-        try {
-            const res = await getRegistrationSetting();
-            if (res.code === 200) {
-                setRegistrationAllowed(res.data);
-            }
-        } catch (error) {
-            // ignore
-        } finally {
-            setSettingLoading(false);
-        }
-    };
-
-    useFocusEffect(
-        useCallback(() => {
-            fetchUsers();
-            fetchSettings();
-        }, [])
+          },
+        },
+      ]
     );
+  };
 
-    const handleToggleRegistration = async (val: boolean) => {
-        setSettingLoading(true); // crude optimistic update
-        const res = await toggleRegistrationSetting(val);
-        if (res.code === 200) {
-            setRegistrationAllowed(val);
-        } else {
-            Alert.alert("Error", res.message);
-        }
-        setSettingLoading(false);
-    };
+  const handleSetExpiration = async () => {
+    if (!selectedUser) return;
+    const days = expirationDays === "" ? null : parseInt(expirationDays);
+    if (days !== null && isNaN(days)) {
+      Alert.alert("Error", "Please enter a valid number");
+      return;
+    }
 
-    const handleDeleteUser = (id: number) => {
-        Alert.alert(
-            "Confirm Delete",
-            "Are you sure you want to delete this user? This cannot be undone.",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: async () => {
-                        const res = await deleteAdminUser(id);
-                        if (res.code === 200) {
-                            Alert.alert("Success", "User deleted");
-                            fetchUsers();
-                        } else {
-                            Alert.alert("Error", res.message);
-                        }
-                    }
-                }
-            ]
-        );
-    };
+    const res = await setAdminUserExpiration(selectedUser.id, days);
+    if (res.code === 200) {
+      Alert.alert("Success", "Expiration updated");
+      setModalVisible(false);
+      fetchUsers();
+      setExpirationDays("");
+    } else {
+      Alert.alert("Error", res.message);
+    }
+  };
 
-    const handleSetExpiration = async () => {
-        if (!selectedUser) return;
-        const days = expirationDays === "" ? null : parseInt(expirationDays);
-        if (days !== null && isNaN(days)) {
-            Alert.alert("Error", "Please enter a valid number");
-            return;
-        }
+  const formatDate = (dateStr?: string | Date | null) => {
+    if (!dateStr) return "用不过期";
+    const date = new Date(dateStr);
+    return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`;
+  };
 
-        const res = await setAdminUserExpiration(selectedUser.id, days);
-        if (res.code === 200) {
-            Alert.alert("Success", "Expiration updated");
-            setModalVisible(false);
-            fetchUsers();
-            setExpirationDays("");
-        } else {
-            Alert.alert("Error", res.message);
-        }
-    };
+  const isExpired = (dateStr?: string | Date | null) => {
+    if (!dateStr) return false;
+    return new Date(dateStr).getTime() < Date.now();
+  };
 
-    const formatDate = (dateStr?: string | Date | null) => {
-        if (!dateStr) return "Forever";
-        const date = new Date(dateStr);
-        return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
-    };
-
-    const isExpired = (dateStr?: string | Date | null) => {
-        if (!dateStr) return false;
-        return new Date(dateStr).getTime() < Date.now();
-    };
-
-     const renderUserItem = ({ item }: { item: User }) => {
-        const expired = isExpired(item.expiresAt);
-        
-        return (
-            <View style={[styles.userItem, { borderBottomColor: colors.border }]}>
-                <View style={styles.userInfo}>
-                    <Text style={[styles.username, { color: colors.text }]}>
-                        {item.username} 
-                        {item.is_admin && <Text style={{ color: colors.primary, fontWeight: 'bold' }}> (Admin)</Text>}
-                    </Text>
-                    <Text style={[styles.userDetails, { color: colors.secondary }]}>
-                        ID: {item.id} | Reg: {formatDate(item.createdAt)}
-                    </Text>
-                    <Text style={[styles.userDetails, { color: expired ? 'red' : colors.secondary }]}>
-                        Expires: {formatDate(item.expiresAt)}
-                    </Text>
-                </View>
-                {!item.is_admin && (
-                    <View style={styles.actions}>
-                        <TouchableOpacity 
-                            style={[styles.actionButton, { backgroundColor: colors.primary }]}
-                            onPress={() => {
-                                setSelectedUser(item);
-                                setModalVisible(true);
-                            }}
-                        >
-                            <Ionicons name="time-outline" size={20} color="#fff" />
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                            style={[styles.actionButton, { backgroundColor: 'red', marginLeft: 8 }]}
-                            onPress={() => handleDeleteUser(item.id)}
-                        >
-                            <Ionicons name="trash-outline" size={20} color="#fff" />
-                        </TouchableOpacity>
-                    </View>
-                )}
-            </View>
-        );
-    };
+  const renderUserItem = ({ item }: { item: User }) => {
+    const expired = isExpired(item.expiresAt);
 
     return (
-        <View style={[styles.container, { backgroundColor: colors.background }]}>
-            <View style={[styles.header, { paddingTop: insets.top + 10, borderBottomColor: colors.border }]}>
-                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                  <Ionicons name="chevron-back" size={28} color={colors.text} />
-                </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>User Management</Text>
-                <View style={{ width: 40 }} />
-            </View>
-
-            <View style={[styles.settingRow, { borderBottomColor: colors.border, paddingHorizontal: 20 }]}>
-                <View style={{flex: 1}}>
-                    <Text style={[styles.settingLabel, { color: colors.text }]}>Allow Registration</Text>
-                </View>
-                 <Switch
-                    value={registrationAllowed}
-                    onValueChange={handleToggleRegistration}
-                    trackColor={{ false: "#767577", true: colors.primary }}
-                />
-            </View>
-
-            {loading ? (
-                <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
-            ) : (
-                <FlatList
-                    data={users}
-                    renderItem={renderUserItem}
-                    keyExtractor={(item) => item.id.toString()}
-                    contentContainerStyle={{ paddingBottom: 40 }}
-                />
+      <View style={[styles.userItem, { borderBottomColor: colors.border }]}>
+        <View style={styles.userInfo}>
+          <Text style={[styles.username, { color: colors.text }]}>
+            {item.username}
+            {item.is_admin && (
+              <Text style={{ color: colors.primary, fontWeight: "bold" }}>
+                {" "}
+                (管理员)
+              </Text>
             )}
-
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={modalVisible}
-                onRequestClose={() => setModalVisible(false)}
-            >
-                <View style={styles.centeredView}>
-                    <View style={[styles.modalView, { backgroundColor: colors.background }]}>
-                        <Text style={[styles.modalText, { color: colors.text }]}>Set Expiration (Days)</Text>
-                         <Text style={[styles.modalDesc, { color: colors.secondary }]}>Leave empty to remove expiration (Forever).</Text>
-                        
-                        <TextInput
-                            style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-                            onChangeText={setExpirationDays}
-                            value={expirationDays}
-                            placeholder="e.g. 7, 30"
-                            placeholderTextColor={colors.secondary}
-                            keyboardType="numeric"
-                        />
-                        <View style={styles.modalActions}>
-                            <TouchableOpacity
-                                style={[styles.button, styles.buttonClose]}
-                                onPress={() => setModalVisible(false)}
-                            >
-                                <Text style={styles.textStyle}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.button, { backgroundColor: colors.primary }]}
-                                onPress={handleSetExpiration}
-                            >
-                                <Text style={styles.textStyle}>Save</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
+          </Text>
+          <Text style={[styles.userDetails, { color: colors.secondary }]}>
+            用户 ID: {item.id} | 注册时间: {formatDate(item.createdAt)}
+          </Text>
+          <Text
+            style={[
+              styles.userDetails,
+              { color: expired ? "red" : colors.secondary },
+            ]}
+          >
+            过期时间: {formatDate(item.expiresAt)}
+          </Text>
         </View>
+        {!item.is_admin && (
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.primary }]}
+              onPress={() => {
+                setSelectedUser(item);
+                setModalVisible(true);
+              }}
+            >
+              <Ionicons name="time-outline" size={20} color={colors.background} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                { backgroundColor: "red", marginLeft: 8 },
+              ]}
+              onPress={() => handleDeleteUser(item.id)}
+            >
+              <Ionicons name="trash-outline" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
     );
+  };
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View
+        style={[
+          styles.header,
+          { paddingTop: insets.top + 10, borderBottomColor: colors.border },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Ionicons name="chevron-back" size={28} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
+          用户管理
+        </Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      <View
+        style={[
+          styles.settingRow,
+          { borderBottomColor: colors.border, paddingHorizontal: 20 },
+        ]}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.settingLabel, { color: colors.text }]}>
+            允许他人注册
+          </Text>
+        </View>
+        <Switch
+          value={registrationAllowed}
+          onValueChange={handleToggleRegistration}
+          trackColor={{ false: "#767577", true: colors.primary }}
+        />
+      </View>
+
+      {loading ? (
+        <ActivityIndicator
+          size="large"
+          color={colors.primary}
+          style={{ marginTop: 20 }}
+        />
+      ) : (
+        <FlatList
+          data={users}
+          renderItem={renderUserItem}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={{ paddingBottom: 40 }}
+        />
+      )}
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.centeredView}>
+          <View
+            style={[styles.modalView, { backgroundColor: colors.background }]}
+          >
+            <Text style={[styles.modalText, { color: colors.text }]}>
+              设置过期时间 (天数)
+            </Text>
+            <Text style={[styles.modalDesc, { color: colors.secondary }]}>
+              留空则永不过期。
+            </Text>
+
+            <TextInput
+              style={[
+                styles.input,
+                { color: colors.text, borderColor: colors.border },
+              ]}
+              onChangeText={setExpirationDays}
+              value={expirationDays}
+              placeholder="e.g. 7, 30"
+              placeholderTextColor={colors.secondary}
+              keyboardType="numeric"
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonClose, {backgroundColor: colors.background}]}
+                onPress={() => setModalVisible(false)}
+              >
+                <Text style={[styles.textStyle, { color: colors.primary }]}>
+                  取消
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonClose, {backgroundColor: colors.primary}]}
+                onPress={handleSetExpiration}
+              >
+                <Text style={[styles.textStyle, { color: colors.background }]}>
+                  保存
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 15,
+    paddingBottom: 15,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  backButton: {
+    padding: 5,
+  },
+  settingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 15,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  userItem: {
+    flexDirection: "row",
+    padding: 15,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+  },
+  userInfo: {
+    flex: 1,
+  },
+  username: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  userDetails: {
+    fontSize: 12,
+  },
+  actions: {
+    flexDirection: "row",
+  },
+  actionButton: {
+    padding: 8,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalView: {
+    margin: 20,
+    borderRadius: 20,
+    padding: 35,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
     },
-    header: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingHorizontal: 15,
-        paddingBottom: 15,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-    },
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: "bold",
-    },
-    backButton: {
-        padding: 5,
-    },
-    settingRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        paddingVertical: 15,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-    },
-    settingLabel: {
-        fontSize: 16,
-        fontWeight: "500",
-    },
-    userItem: {
-        flexDirection: "row",
-        padding: 15,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        alignItems: 'center',
-    },
-    userInfo: {
-        flex: 1,
-    },
-    username: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        marginBottom: 4,
-    },
-    userDetails: {
-        fontSize: 12,
-    },
-    actions: {
-        flexDirection: 'row',
-    },
-    actionButton: {
-        padding: 8,
-        borderRadius: 8,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    centeredView: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: 'rgba(0,0,0,0.5)',
-    },
-    modalView: {
-        margin: 20,
-        borderRadius: 20,
-        padding: 35,
-        alignItems: "center",
-        shadowColor: "#000",
-        shadowOffset: {
-            width: 0,
-            height: 2
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-        elevation: 5,
-        width: '80%',
-    },
-    button: {
-        borderRadius: 20,
-        padding: 10,
-        elevation: 2,
-        minWidth: 100,
-        marginHorizontal: 10,
-    },
-    buttonClose: {
-        backgroundColor: "#2196F3", // will be overridden or used as default close
-        opacity: 0.6,
-    },
-    textStyle: {
-        color: "white",
-        fontWeight: "bold",
-        textAlign: "center"
-    },
-    modalText: {
-        marginBottom: 5,
-        textAlign: "center",
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    modalDesc: {
-        marginBottom: 15,
-        textAlign: "center",
-        fontSize: 12,
-    },
-    input: {
-        height: 40,
-        width: '100%',
-        margin: 12,
-        borderWidth: 1,
-        padding: 10,
-        borderRadius: 8,
-    },
-    modalActions: {
-        flexDirection: 'row',
-        marginTop: 15,
-    }
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    width: "80%",
+  },
+  button: {
+    borderRadius: 20,
+
+    padding: 10,
+    elevation: 2,
+    minWidth: 100,
+    marginHorizontal: 10,
+  },
+  buttonClose: {
+    opacity: 0.6,
+  },
+  textStyle: {
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  modalText: {
+    marginBottom: 5,
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  modalDesc: {
+    marginBottom: 15,
+    textAlign: "center",
+    fontSize: 12,
+  },
+  input: {
+    height: 40,
+    width: "100%",
+    margin: 12,
+    borderWidth: 1,
+    padding: 10,
+    borderRadius: 8,
+  },
+  modalActions: {
+    flexDirection: "row",
+    marginTop: 15,
+  },
 });

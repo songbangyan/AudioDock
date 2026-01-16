@@ -5,6 +5,7 @@ import { Button, message, Modal, Space, Table, Tag, Typography } from "antd";
 import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import styles from "./index.module.less";
 
 const { Title } = Typography;
 
@@ -121,9 +122,9 @@ const UserManagement: React.FC = () => {
     ];
 
     return (
-        <div style={{ padding: 24, height: '100%', overflow: 'auto' }}>
+        <div style={{ padding: 24, height: '100%', overflow: 'auto' }} className={styles.trackListContainer}>
            <Space style={{ marginBottom: 16 }}>
-               <Button icon={<LeftOutlined />} onClick={() => navigate(-1)}>返回</Button>
+               <Button type="text" icon={<LeftOutlined />} onClick={() => navigate(-1)}>返回</Button>
                <Title level={4} style={{ margin: 0 }}>用户管理</Title>
            </Space>
            <div style={{ marginTop: 16 }}>
