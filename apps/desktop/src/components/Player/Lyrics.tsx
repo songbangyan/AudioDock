@@ -49,12 +49,14 @@ const Lyrics: React.FC<LyricsProps> = ({ lyrics, currentTime }) => {
             const part3Str = match[4];
 
             let time = 0;
+            // If separator is ':' and we have 3 parts, assume hh:mm:ss
             if (separator === ":" && part3Str) {
               const hours = part1;
               const minutes = part2;
               const seconds = parseInt(part3Str, 10);
               time = hours * 3600 + minutes * 60 + seconds;
             } else {
+              // Assume mm:ss.xx or mm:ss
               const minutes = part1;
               const seconds = part2;
               const milliseconds = part3Str

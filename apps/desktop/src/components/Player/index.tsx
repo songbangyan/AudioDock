@@ -675,7 +675,14 @@ const Player: React.FC = () => {
 
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
-      setDuration(audioRef.current.duration);
+      const audioDuration = audioRef.current.duration;
+      
+      // Prioritize database duration because streaming/transcoding often reports 0 or Infinity
+      if (currentTrack?.duration && currentTrack.duration > 0) {
+        setDuration(currentTrack.duration);
+      } else if (isFinite(audioDuration)) {
+        setDuration(audioDuration);
+      }
 
       // Apply playback rate
       audioRef.current.playbackRate = playbackRate;

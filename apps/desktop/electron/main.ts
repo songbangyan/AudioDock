@@ -1,3 +1,4 @@
+import { spawn } from 'child_process';
 import { app, BrowserWindow, dialog, screen as electronScreen, ipcMain, Menu, nativeImage, net, protocol, shell, Tray } from 'electron';
 import fs from 'fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -14,6 +15,26 @@ function getDeviceName() {
   if (platform === "win32") return `${hostname}（Windows）`;
   return hostname;
 }
+
+// Helper to check audio codec
+const checkAudioCodec = (filePath: string): Promise<string> => {
+  return new Promise((resolve) => {
+    const p = spawn('ffprobe', [
+      '-v', 'error',
+      '-select_streams', 'a:0',
+      '-show_entries', 'stream=codec_name',
+      '-of', 'default=noprint_wrappers=1:nokey=1',
+      filePath
+    ]);
+    let output = '';
+    p.stdout.on('data', (d) => output += d.toString());
+    p.on('close', () => resolve(output.trim()));
+    p.on('error', (e) => {
+      console.warn("ffprobe failed", e);
+      resolve('');
+    });
+  });
+};
 
 ipcMain.handle("get-device-name", () => {
     return getDeviceName();
@@ -681,7 +702,29 @@ app.whenReady().then(() => {
       else if (ext === '.png') contentType = 'image/png';
       else if (ext === '.mp3') contentType = 'audio/mpeg';
       else if (ext === '.flac') contentType = 'audio/flac';
+      else if (ext === '.wav') contentType = 'audio/wav';
+      else if (ext === '.aac') contentType = 'audio/aac';
       else if (ext === '.json') contentType = 'application/json';
+
+      // Special handling for m4a to detect ALAC
+      if (ext === '.m4a') {
+         const codec = await checkAudioCodec(filePath);
+         if (codec === 'alac') {
+             console.log(`[Main] Detected ALAC codec for ${filePath}, transcoding to WAV...`);
+             const ffmpeg = spawn('ffmpeg', ['-i', filePath, '-f', 'wav', '-']);
+             
+             // Stream the output
+             return new Response(Readable.toWeb(ffmpeg.stdout) as any, {
+                 headers: { 
+                   'Content-Type': 'audio/wav',
+                   'Access-Control-Allow-Origin': '*',
+                   'Cache-Control': 'no-cache'
+                 }
+             });
+         }
+         // Metadata or AAC
+         contentType = 'audio/mp4';
+      }
 
       // For covers and metadata, we can use readFileSync for reliability
       // For large audio files, net.fetch is preferred for streaming

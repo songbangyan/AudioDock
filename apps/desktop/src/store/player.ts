@@ -212,7 +212,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
             currentTrack: track,
             playlist: state.playlist,
             currentTime: startTime || 0,
-            duration: 0,
+            duration: track.duration || 0,
             currentAlbumId: albumId || state.currentAlbumId
           });
 
