@@ -756,7 +756,7 @@ export default function PlayerScreen() {
                   contentContainerStyle={[
                     styles.lyricsScrollContent,
                     {
-                      paddingTop: 40, // Small top margin for aesthetics
+                      paddingTop: lyricContainerHeight / 2,
                       paddingBottom: lyricContainerHeight / 2,
                     },
                   ]}
@@ -852,7 +852,7 @@ export default function PlayerScreen() {
                       contentContainerStyle={[
                         styles.lyricsScrollContent,
                         {
-                          paddingTop: 40, // Small top margin for aesthetics
+                          paddingTop: lyricContainerHeight / 2,
                           paddingBottom: lyricContainerHeight / 2,
                         },
                       ]}
@@ -883,16 +883,6 @@ export default function PlayerScreen() {
                           );
                         });
                       })()}
-                      {!currentTrack.lyrics && (
-                        <Text
-                          style={[
-                            styles.lyricsText,
-                            { color: colors.secondary },
-                          ]}
-                        >
-                          暂无歌词
-                        </Text>
-                      )}
                     </ScrollView>
                   </TouchableOpacity>
                 ) : (
