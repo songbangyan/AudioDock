@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import {
     createImportTask,
@@ -87,7 +88,7 @@ const StackedCover = ({ tracks }: { tracks: any[] }) => {
 export default function PersonalScreen() {
   const { theme, toggleTheme, colors } = useTheme();
   const { mode, setMode } = usePlayMode();
-  const { logout, user } = useAuth();
+  const { logout, user, switchServer } = useAuth();
   const { playTrackList } = usePlayer();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -95,6 +96,24 @@ export default function PersonalScreen() {
   const [activeTab, setActiveTab] = useState<TabType>("playlists");
   const [activeSubTab, setActiveSubTab] = useState<SubTabType>("track");
   const [loading, setLoading] = useState(false);
+  
+  const [serverModalVisible, setServerModalVisible] = useState(false);
+  const [serverHistory, setServerHistory] = useState<{label: string, value: string}[]>([]);
+
+  const loadServerHistory = useCallback(async () => {
+    const history = await AsyncStorage.getItem("serverHistory");
+    if (history) {
+      setServerHistory(JSON.parse(history));
+    } else {
+      setServerHistory([{ label: 'http://localhost:3000', value: 'http://localhost:3000' }]);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (serverModalVisible) {
+      loadServerHistory();
+    }
+  }, [serverModalVisible, loadServerHistory]);
   
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [favorites, setFavorites] = useState<any[]>([]);
@@ -452,9 +471,14 @@ export default function PersonalScreen() {
         <TouchableOpacity onPress={() => setMenuVisible(true)} style={styles.iconBtn}>
           <Ionicons name="add" size={28} color={colors.text} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push("/settings")} style={styles.iconBtn}>
-          <Ionicons name="settings-outline" size={24} color={colors.text} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity onPress={() => setServerModalVisible(true)} style={[styles.iconBtn, { marginRight: 10 }]}>
+            <Ionicons name="server-outline" size={22} color={colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push("/settings")} style={styles.iconBtn}>
+            <Ionicons name="settings-outline" size={24} color={colors.text} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* User Info */}
@@ -719,6 +743,54 @@ export default function PersonalScreen() {
                 )}
             </View>
         </View>
+      </Modal>
+
+      {/* Server Selection Modal */}
+      <Modal
+        visible={serverModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setServerModalVisible(false)}
+      >
+        <TouchableOpacity 
+            style={styles.importModalOverlay} 
+            activeOpacity={1} 
+            onPress={() => setServerModalVisible(false)}
+        >
+            <View style={[styles.importModalContent, { backgroundColor: colors.card }]}>
+                <Text style={[styles.importModalTitle, { color: colors.text, textAlign: 'center' }]}>切换服务端</Text>
+                <FlatList
+                    data={serverHistory}
+                    keyExtractor={(item) => item.value}
+                    renderItem={({ item }) => (
+                        <TouchableOpacity 
+                            style={[
+                                styles.serverItem, 
+                                { borderBottomColor: colors.border },
+                                getBaseURL() === item.value && { backgroundColor: 'rgba(150,150,150,0.1)' }
+                            ]}
+                            onPress={async () => {
+                                await switchServer(item.value);
+                                setServerModalVisible(false);
+                            }}
+                        >
+                            <View style={{ flex: 1 }}>
+                                <Text style={[
+                                    styles.serverItemText, 
+                                    { color: getBaseURL() === item.value ? colors.primary : colors.text }
+                                ]}>
+                                    {item.label}
+                                </Text>
+                            </View>
+                            {getBaseURL() === item.value && (
+                                <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                            )}
+                        </TouchableOpacity>
+                    )}
+                    style={{ maxHeight: 300 }}
+                />
+            </View>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -997,5 +1069,17 @@ const styles = StyleSheet.create({
   importHideBtn: {
     paddingVertical: 12,
     alignItems: 'center',
-  }
+  },
+  serverItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 10,
+    borderBottomWidth: 0.5,
+    borderRadius: 8,
+  },
+  serverItemText: {
+    fontSize: 16,
+  },
 });

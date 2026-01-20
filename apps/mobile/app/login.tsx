@@ -8,12 +8,14 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import DropDownPicker from 'react-native-dropdown-picker';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/context/ThemeContext";
@@ -31,8 +33,11 @@ export default function LoginScreen() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
   const [statusMessage, setStatusMessage] = useState<'ok' | 'error' >('error');
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState([
+    { label: 'Local Server', value: 'http://localhost:3000' },
+  ]);
 
   useEffect(() => {
     loadServerAddress();
@@ -66,6 +71,8 @@ export default function LoginScreen() {
         const text = await response.text();
         if (text.includes("hello")) {
           setStatusMessage("ok");
+          // Restore credentials for this address
+          restoreCredentials(address);
           return;
         }
       }
@@ -75,15 +82,59 @@ export default function LoginScreen() {
     }
   };
 
+  const restoreCredentials = async (address: string) => {
+    try {
+      const savedCreds = await AsyncStorage.getItem(`creds_${address}`);
+      if (savedCreds) {
+        const { username: u, password: p } = JSON.parse(savedCreds);
+        setUsername(u || "");
+        setPassword(p || "");
+      } else {
+        setUsername("");
+        setPassword("");
+      }
+    } catch (e) {
+      console.error("Failed to restore credentials", e);
+    }
+  };
+
   const loadServerAddress = async () => {
     try {
       const savedAddress = await AsyncStorage.getItem("serverAddress");
+      const savedHistory = await AsyncStorage.getItem("serverHistory");
+      
+      let historyItems = [
+        { label: 'http://localhost:3000', value: 'http://localhost:3000' },
+      ];
+
+      if (savedHistory) {
+        historyItems = JSON.parse(savedHistory);
+      }
+
+      setItems(historyItems);
+
       if (savedAddress) {
         setServerAddress(savedAddress);
         checkServerConnectivity(savedAddress);
       }
     } catch (error) {
       console.error("Failed to load server address:", error);
+    }
+  };
+
+  const saveToHistory = async (address: string) => {
+    if (!address) return;
+    try {
+      const currentHistory = await AsyncStorage.getItem("serverHistory");
+      let history = currentHistory ? JSON.parse(currentHistory) : [];
+      
+      if (!history.find((item: any) => item.value === address)) {
+        history.push({ label: address, value: address });
+        await AsyncStorage.setItem("serverHistory", JSON.stringify(history));
+        setItems(history);
+      }
+    } catch (error) {
+      console.error("Failed to save history:", error);
     }
   };
 
@@ -100,10 +151,14 @@ export default function LoginScreen() {
       Alert.alert("Error", "Passwords do not match");
       return;
     }
-
     try {
       setLoading(true);
       await AsyncStorage.setItem("serverAddress", serverAddress);
+      await saveToHistory(serverAddress);
+      
+      // Save credentials for this server before logging in/registering
+      await AsyncStorage.setItem(`creds_${serverAddress}`, JSON.stringify({ username, password }));
+      
       setBaseURL(serverAddress); // Update base URL immediately
 
       if (isLogin) {
@@ -112,9 +167,6 @@ export default function LoginScreen() {
         await register({ username, password });
       }
 
-      // Navigation is handled by _layout.tsx based on token state,
-      // but we can also manually replace if needed.
-      // For now, let the auth state change trigger the redirect or we do it here.
       router.replace("/(tabs)");
     } catch (error: any) {
       Alert.alert("Error", error.message || "Authentication failed");
@@ -134,124 +186,144 @@ export default function LoginScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
       >
-        <View style={styles.content}>
-          <Text style={[styles.title, { color: colors.text }]}>
-            {isLogin ? "欢迎登录" : "欢迎注册"}
-          </Text>
-
-          <View style={styles.form}>
-            <Text style={[styles.label, { color: colors.text }]}>
-              数据源地址
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.content}>
+            <Text style={[styles.title, { color: colors.text }]}>
+              {isLogin ? "欢迎登录" : "欢迎注册"}
             </Text>
-            <View style={styles.inputContainer}>
+
+            <View style={styles.form}>
+              <Text style={[styles.label, { color: colors.text }]}>
+                数据源地址
+              </Text>
+              <View style={[styles.inputContainer, { zIndex: 1000 }]}>
+                <View style={styles.inputWarp}>
+                  <DropDownPicker
+                    open={open}
+                    value={serverAddress}
+                    items={items}
+                    setOpen={setOpen}
+                    setValue={setServerAddress}
+                    setItems={setItems}
+                    searchable={true}
+                    searchPlaceholder="输入数据源地址..."
+                    placeholder="选择或输入数据源地址"
+                    addCustomItem={true}
+                    onChangeValue={(value) => {
+                      if (value) checkServerConnectivity(value);
+                    }}
+                    theme={colors.background === '#000000' ? "DARK" : "LIGHT"}
+                    style={{
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    }}
+                    dropDownContainerStyle={{
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    }}
+                    textStyle={{
+                      color: colors.text,
+                    }}
+                    placeholderStyle={{
+                      color: colors.secondary,
+                    }}
+                    listMode="SCROLLVIEW"
+                  />
+                </View>
+                {statusMessage === "error" ?  (
+                  <MaterialIcons style={styles.statusMessage} name="error" size={24} color="red" />
+                ) : (
+                  <FontAwesome style={styles.statusMessage} name="check-circle" size={24} color="#4CAF50" />
+                )}
+              </View>
+
+              <Text style={[styles.label, { color: colors.text }]}>用户名</Text>
               <TextInput
                 style={[
                   styles.input,
-                  styles.inputWarp,
                   {
                     color: colors.text,
                     borderColor: colors.border,
                     backgroundColor: colors.card,
                   },
                 ]}
-                placeholder="http://localhost:3000"
+                placeholder="用户名"
                 placeholderTextColor={colors.secondary}
-                value={serverAddress}
-                onChangeText={setServerAddress}
-                onBlur={() => checkServerConnectivity(serverAddress)}
+                value={username}
+                onChangeText={setUsername}
                 autoCapitalize="none"
-                autoCorrect={false}
               />
-              {statusMessage === "error" ?  (
-                <MaterialIcons style={styles.statusMessage} name="error" size={24} color="red" />
-              ) : (
-                <FontAwesome style={styles.statusMessage} name="check-circle" size={24} color="black" />
+
+              <Text style={[styles.label, { color: colors.text }]}>密码</Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    color: colors.text,
+                    borderColor: colors.border,
+                    backgroundColor: colors.card,
+                  },
+                ]}
+                placeholder="密码"
+                placeholderTextColor={colors.secondary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+
+              {!isLogin && (
+                <>
+                  <Text style={[styles.label, { color: colors.text }]}>
+                    确认密码
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        color: colors.text,
+                        borderColor: colors.border,
+                        backgroundColor: colors.card,
+                      },
+                    ]}
+                    placeholder="确认密码"
+                    placeholderTextColor={colors.secondary}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry
+                  />
+                </>
               )}
+
+              <TouchableOpacity
+                style={[styles.button, { backgroundColor: colors.primary }]}
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color={colors.background} />
+                ) : (
+                  <Text style={[styles.buttonText, { color: colors.background }]}>
+                    {isLogin ? "登陆" : "注册"}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.switchButton}
+                onPress={() => setIsLogin(!isLogin)}
+              >
+                <Text style={[styles.switchText, { color: colors.secondary }]}>
+                  {isLogin
+                    ? "没有账号？注册"
+                    : "已有账号？登录"}
+                </Text>
+              </TouchableOpacity>
             </View>
-
-            <Text style={[styles.label, { color: colors.text }]}>用户名</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  color: colors.text,
-                  borderColor: colors.border,
-                  backgroundColor: colors.card,
-                },
-              ]}
-              placeholder="用户名"
-              placeholderTextColor={colors.secondary}
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-            />
-
-            <Text style={[styles.label, { color: colors.text }]}>密码</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  color: colors.text,
-                  borderColor: colors.border,
-                  backgroundColor: colors.card,
-                },
-              ]}
-              placeholder="密码"
-              placeholderTextColor={colors.secondary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-
-            {!isLogin && (
-              <>
-                <Text style={[styles.label, { color: colors.text }]}>
-                  确认密码
-                </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      color: colors.text,
-                      borderColor: colors.border,
-                      backgroundColor: colors.card,
-                    },
-                  ]}
-                  placeholder="确认密码"
-                  placeholderTextColor={colors.secondary}
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry
-                />
-              </>
-            )}
-
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: colors.primary }]}
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color={colors.background} />
-              ) : (
-                <Text style={[styles.buttonText, { color: colors.background }]}>
-                  {isLogin ? "登陆" : "注册"}
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.switchButton}
-              onPress={() => setIsLogin(!isLogin)}
-            >
-              <Text style={[styles.switchText, { color: colors.secondary }]}>
-                {isLogin
-                  ? "没有账号？注册"
-                  : "已有账号？登录"}
-              </Text>
-            </TouchableOpacity>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
@@ -263,6 +335,9 @@ const styles = StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   content: {
     flex: 1,

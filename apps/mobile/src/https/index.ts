@@ -44,7 +44,9 @@ const messageContent: { [key in number]: string } = {
 instance.interceptors.request.use(
   async (config) => {
     try {
-      const token = await AsyncStorage.getItem("token");
+      // Tokens are stored per baseURL
+      const tokenKey = `token_${activeBaseURL}`;
+      const token = await AsyncStorage.getItem(tokenKey);
       if (token) {
         config.headers.set("Authorization", `Bearer ${token}`);
       }
