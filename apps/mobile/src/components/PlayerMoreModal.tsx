@@ -41,13 +41,34 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
 }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+
+  // ✨ 从 Context 获取全局设置
+  const {
+    sleepTimer,
+    position,
+    seekTo,
+    playbackRate,
+    setPlaybackRate,
+    skipIntroDuration,
+    setSkipIntroDuration,
+    skipOutroDuration,
+    setSkipOutroDuration,
+  } = usePlayer();
+
   const [sleepTimerVisible, setSleepTimerVisible] = useState(false);
   const [addToPlaylistVisible, setAddToPlaylistVisible] = useState(false);
-  const { sleepTimer, position, seekTo, playbackRate, setPlaybackRate } = usePlayer();
   const [remainingTime, setRemainingTime] = useState<string>("");
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [lyricsSizeVisible, setLyricsSizeVisible] = useState(false);
+
+  // 跳过片头/片尾 modal 状态
+  const [skipModalVisible, setSkipModalVisible] = useState(false);
+  const [skipModalType, setSkipModalType] = useState<"intro" | "outro" | null>(
+    null
+  );
+  // ✨ 临时状态，用于在弹窗中修改，确认后才同步到 Context
+  const [tempSkipTime, setTempSkipTime] = useState<number>(0);
 
   // Calculate remaining time
   useEffect(() => {
@@ -59,7 +80,7 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
     const updateRemainingTime = () => {
       const now = Date.now();
       const remaining = sleepTimer - now;
-      
+
       if (remaining <= 0) {
         setRemainingTime("");
         return;
@@ -67,7 +88,7 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
 
       const minutes = Math.floor(remaining / 60000);
       const seconds = Math.floor((remaining % 60000) / 1000);
-      setRemainingTime(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+      setRemainingTime(`${minutes}:${seconds.toString().padStart(2, "0")}`);
     };
 
     updateRemainingTime();
@@ -103,14 +124,13 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
   };
 
   const handleSleepTimer = () => {
-    console.log("Opening sleep timer modal");
     setVisible(false);
     setSleepTimerVisible(true);
   };
 
   const handleDownload = async () => {
     if (!currentTrack || isDownloaded || isDownloading) return;
-    
+
     setIsDownloading(true);
     try {
       const success = await downloadTrack(currentTrack);
@@ -144,28 +164,75 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
     setPlaybackRate(nextRate);
   };
 
-  // Standard options (always shown)
+  // 时间格式化
+  const formatTime = (s: number) => {
+    const minutes = Math.floor(s / 60);
+    const seconds = s % 60;
+    return `${minutes}:${String(seconds).padStart(2, "0")}`;
+  };
+
+  // 调整时间（临时状态）
+  const adjustSkipTime = (delta: number) => {
+    setTempSkipTime((prev) => {
+      const newVal = prev + delta;
+      return Math.max(0, newVal); // 不设上限，或者设一个合理上限如 600s
+    });
+  };
+
+  // 打开弹窗：读取当前全局设置到临时状态
+  const openSkipModal = (type: "intro" | "outro") => {
+    setSkipModalType(type);
+    const currentVal = type === "intro" ? skipIntroDuration : skipOutroDuration;
+    // 如果还没设置(0)，给个默认 30 方便调整；如果已设置，显示当前值
+    setTempSkipTime(currentVal === 0 ? 30 : currentVal);
+
+    setVisible(false);
+    setSkipModalVisible(true);
+  };
+
+  const cancelSkip = () => {
+    setSkipModalVisible(false);
+    setSkipModalType(null);
+  };
+
+  // 确认：将临时状态保存到 Context
+  const confirmSkip = () => {
+    if (skipModalType === "intro") {
+      setSkipIntroDuration(tempSkipTime);
+    } else if (skipModalType === "outro") {
+      setSkipOutroDuration(tempSkipTime);
+    }
+    cancelSkip();
+  };
+
+  // 清除/关闭跳过
+  const clearSkip = () => {
+    if (skipModalType === "intro") {
+      setSkipIntroDuration(0);
+    } else if (skipModalType === "outro") {
+      setSkipOutroDuration(0);
+    }
+    cancelSkip();
+  };
+
   const standardOptions = [
     {
       icon: "person-outline" as const,
-      label: "歌手详情",
+      label: "艺术家详情",
       onPress: handleArtistDetails,
       disabled: !currentTrack?.artistId,
-      isMaterialIcon: false,
     },
     {
       icon: "albums-outline" as const,
       label: "专辑详情",
       onPress: handleAlbumDetails,
       disabled: !currentTrack?.albumId,
-      isMaterialIcon: false,
     },
     {
       icon: "time-outline" as const,
       label: remainingTime ? `定时关闭 (${remainingTime})` : "定时关闭",
       onPress: handleSleepTimer,
       disabled: false,
-      isMaterialIcon: false,
     },
     {
       icon: "add-circle-outline" as const,
@@ -175,14 +242,14 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
         setAddToPlaylistVisible(true);
       },
       disabled: !currentTrack,
-      isMaterialIcon: false,
     },
     {
-      icon: isDownloaded ? ("cloud-done" as const) : ("cloud-download-outline" as const),
+      icon: isDownloaded
+        ? ("cloud-done" as const)
+        : ("cloud-download-outline" as const),
       label: isDownloading ? "正在下载..." : isDownloaded ? "已下载" : "下载",
       onPress: handleDownload,
       disabled: isDownloaded || isDownloading,
-      isMaterialIcon: false,
     },
     {
       icon: "text-outline" as const,
@@ -192,9 +259,57 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
         setLyricsSizeVisible(true);
       },
       disabled: false,
-      isMaterialIcon: false,
     },
   ];
+
+  const TimePresetChip = ({ seconds }: { seconds: number }) => (
+    <TouchableOpacity
+      onPress={() => setTempSkipTime(seconds)}
+      style={{
+        backgroundColor:
+          tempSkipTime === seconds ? colors.primary : "rgba(150,150,150,0.1)",
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: tempSkipTime === seconds ? colors.primary : colors.border,
+      }}
+    >
+      <Text
+        style={{
+          color: tempSkipTime === seconds ? "#FFF" : colors.text,
+          fontSize: 12,
+          fontWeight: "600",
+        }}
+      >
+        {seconds}s
+      </Text>
+    </TouchableOpacity>
+  );
+
+  const AdjustButton = ({
+    amount,
+    label,
+  }: {
+    amount: number;
+    label: string;
+  }) => (
+    <TouchableOpacity
+      onPress={() => adjustSkipTime(amount)}
+      style={{
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: "rgba(150,150,150,0.1)",
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
+      <Text style={{ color: colors.text, fontSize: 14, fontWeight: "600" }}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
 
   return (
     <>
@@ -205,8 +320,8 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
         onRequestClose={onClose}
       >
         <Pressable style={styles.backdrop} onPress={onClose}>
-          <Pressable 
-            style={{ width: "100%", maxWidth: 450, alignSelf: 'center' }} 
+          <Pressable
+            style={{ width: "100%", maxWidth: 450, alignSelf: "center" }}
             onPress={(e) => e.stopPropagation()}
           >
             <View
@@ -216,11 +331,42 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
               ]}
             >
               <View style={styles.handle} />
-              <Text style={[styles.title, { color: colors.text }]}>更多选项</Text>
+              <Text style={[styles.title, { color: colors.text }]}>
+                更多选项
+              </Text>
 
-              {/* Audiobook Controls - Horizontal Layout */}
+              {/* Audiobook Controls */}
               {currentTrack?.type === TrackType.AUDIOBOOK && (
                 <View style={styles.audiobookControls}>
+                  <TouchableOpacity
+                    style={styles.skipButton}
+                    onPress={() => openSkipModal("intro")}
+                  >
+                    <Ionicons
+                      name="play-skip-back-outline"
+                      size={28}
+                      color={
+                        skipIntroDuration > 0 ? colors.primary : colors.text
+                      }
+                    />
+                    <Text
+                      style={[styles.controlLabel, { color: colors.secondary }]}
+                    >
+                      片头
+                    </Text>
+                    {/* ✨ 实时显示当前设置 */}
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        color: colors.primary,
+                        marginTop: 2,
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {skipIntroDuration > 0 ? `${skipIntroDuration}s` : "关"}
+                    </Text>
+                  </TouchableOpacity>
+
                   <TouchableOpacity
                     style={styles.controlButton}
                     onPress={handleSkipBackward}
@@ -230,7 +376,9 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
                       size={32}
                       color={colors.text}
                     />
-                    <Text style={[styles.controlLabel, { color: colors.secondary }]}>
+                    <Text
+                      style={[styles.controlLabel, { color: colors.secondary }]}
+                    >
                       后退 15s
                     </Text>
                   </TouchableOpacity>
@@ -244,7 +392,9 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
                       size={32}
                       color={colors.text}
                     />
-                    <Text style={[styles.controlLabel, { color: colors.secondary }]}>
+                    <Text
+                      style={[styles.controlLabel, { color: colors.secondary }]}
+                    >
                       {playbackRate}x
                     </Text>
                   </TouchableOpacity>
@@ -258,14 +408,44 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
                       size={32}
                       color={colors.text}
                     />
-                    <Text style={[styles.controlLabel, { color: colors.secondary }]}>
+                    <Text
+                      style={[styles.controlLabel, { color: colors.secondary }]}
+                    >
                       前进 15s
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.skipButton}
+                    onPress={() => openSkipModal("outro")}
+                  >
+                    <Ionicons
+                      name="play-skip-forward-outline"
+                      size={28}
+                      color={
+                        skipOutroDuration > 0 ? colors.primary : colors.text
+                      }
+                    />
+                    <Text
+                      style={[styles.controlLabel, { color: colors.secondary }]}
+                    >
+                      片尾
+                    </Text>
+                    {/* ✨ 实时显示当前设置 */}
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        color: colors.primary,
+                        marginTop: 2,
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {skipOutroDuration > 0 ? `${skipOutroDuration}s` : "关"}
                     </Text>
                   </TouchableOpacity>
                 </View>
               )}
 
-              {/* Standard Options - Vertical List */}
               {standardOptions.map((option, index) => (
                 <TouchableOpacity
                   key={index}
@@ -285,7 +465,9 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
                   <Text
                     style={[
                       styles.optionText,
-                      { color: option.disabled ? colors.secondary : colors.text },
+                      {
+                        color: option.disabled ? colors.secondary : colors.text,
+                      },
                     ]}
                   >
                     {option.label}
@@ -297,6 +479,143 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
                   />
                 </TouchableOpacity>
               ))}
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* --- 全新设计的跳过片头/片尾弹窗 (全局配置版) --- */}
+      <Modal
+        visible={skipModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={cancelSkip}
+        statusBarTranslucent
+      >
+        <Pressable style={styles.backdrop} onPress={cancelSkip}>
+          <Pressable
+            style={{ width: "100%", maxWidth: 450, alignSelf: "center" }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View
+              style={[
+                styles.modalContent,
+                {
+                  backgroundColor: colors.card,
+                  paddingBottom: insets.bottom + 20,
+                },
+              ]}
+            >
+              <View style={styles.handle} />
+
+              <Text
+                style={[
+                  styles.title,
+                  { color: colors.text, textAlign: "center" },
+                ]}
+              >
+                {skipModalType === "intro"
+                  ? "设置自动跳过片头"
+                  : "设置自动跳过片尾"}
+              </Text>
+              <Text
+                style={{
+                  textAlign: "center",
+                  color: colors.secondary,
+                  fontSize: 12,
+                  marginBottom: 10,
+                }}
+              >
+                对所有有声书生效
+              </Text>
+
+              {/* 核心时间控制区域 */}
+              <View style={{ alignItems: "center", paddingVertical: 10 }}>
+                {/* 大字号时间显示 */}
+                <Text
+                  style={{
+                    fontSize: 48,
+                    fontWeight: "bold",
+                    color: colors.primary,
+                    fontVariant: ["tabular-nums"],
+                  }}
+                >
+                  {formatTime(tempSkipTime)}
+                </Text>
+
+                {/* 加减控制栏 */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 16,
+                    marginTop: 20,
+                  }}
+                >
+                  <AdjustButton amount={-10} label="-10" />
+                  <AdjustButton amount={-1} label="-1" />
+
+                  <View
+                    style={{
+                      width: 1,
+                      height: 20,
+                      backgroundColor: colors.border,
+                    }}
+                  />
+
+                  <AdjustButton amount={1} label="+1" />
+                  <AdjustButton amount={10} label="+10" />
+                </View>
+
+                {/* 常用预设快捷键 */}
+                <View style={{ flexDirection: "row", gap: 10, marginTop: 24 }}>
+                  <TimePresetChip seconds={30} />
+                  <TimePresetChip seconds={60} />
+                  <TimePresetChip seconds={90} />
+                  <TimePresetChip seconds={120} />
+                </View>
+              </View>
+
+              {/* 底部操作按钮 */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  paddingHorizontal: 20,
+                  paddingTop: 10,
+                  gap: 12,
+                }}
+              >
+                <TouchableOpacity
+                  onPress={clearSkip} // 改为关闭/重置
+                  style={{
+                    flex: 1,
+                    padding: 14,
+                    alignItems: "center",
+                    backgroundColor: "rgba(255, 59, 48, 0.1)", // 红色背景
+                    borderRadius: 12,
+                  }}
+                >
+                  <Text style={{ color: "#FF3B30", fontWeight: "600" }}>
+                    关闭此功能
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={confirmSkip}
+                  style={{
+                    flex: 2,
+                    padding: 14,
+                    alignItems: "center",
+                    backgroundColor: colors.primary,
+                    borderRadius: 12,
+                  }}
+                >
+                  <Text style={{ color: "#FFF", fontWeight: "bold" }}>
+                    保存设置
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </Pressable>
         </Pressable>
@@ -329,12 +648,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "flex-end",
-    alignItems: 'center',
+    alignItems: "center",
   },
   modalContent: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 8,
+    width: "100%",
   },
   handle: {
     width: 40,
@@ -343,12 +663,13 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     alignSelf: "center",
     marginBottom: 16,
+    marginTop: 8,
   },
   title: {
     fontSize: 18,
     fontWeight: "600",
     paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingBottom: 4,
   },
   option: {
     flexDirection: "row",
@@ -383,5 +704,10 @@ const styles = StyleSheet.create({
   controlLabel: {
     fontSize: 12,
     marginTop: 8,
+  },
+  skipButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 60,
   },
 });

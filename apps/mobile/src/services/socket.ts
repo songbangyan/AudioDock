@@ -7,7 +7,7 @@ class MobileSocketService extends SharedSocketService {
     if (this.connected) return;
 
     let deviceName = Device.modelName || "Mobile Device";
-    
+
     // Attempt to get cached device info if needed, but expo-device is usually good
     const savedAddress = await AsyncStorage.getItem("serverAddress");
 

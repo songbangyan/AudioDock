@@ -1,24 +1,29 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { addAlbumToHistory, addToHistory, getLatestHistory, reportAudiobookProgress } from "@soundx/services";
+import {
+  addAlbumToHistory,
+  addToHistory,
+  getLatestHistory,
+  reportAudiobookProgress,
+} from "@soundx/services";
 import * as Device from "expo-device";
 import React, {
-    createContext,
-    useContext,
-    useEffect,
-    useRef,
-    useState,
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
 } from "react";
 import { Alert, Platform } from "react-native";
 import TrackPlayer, {
-    AppKilledPlaybackBehavior,
-    Capability,
-    Event,
-    IOSCategory,
-    IOSCategoryMode,
-    IOSCategoryOptions,
-    State,
-    useProgress,
-    useTrackPlayerEvents,
+  AppKilledPlaybackBehavior,
+  Capability,
+  Event,
+  IOSCategory,
+  IOSCategoryMode,
+  IOSCategoryOptions,
+  State,
+  useProgress,
+  useTrackPlayerEvents,
 } from "react-native-track-player";
 import { Track, TrackType } from "../models";
 import { socketService } from "../services/socket";
@@ -63,6 +68,12 @@ interface PlayerContextType {
   clearSleepTimer: () => void;
   playbackRate: number;
   setPlaybackRate: (rate: number) => Promise<void>;
+
+  // ✨ 新增：跳过片头/片尾全局配置
+  skipIntroDuration: number;
+  setSkipIntroDuration: (seconds: number) => void;
+  skipOutroDuration: number;
+  setSkipOutroDuration: (seconds: number) => void;
 }
 
 const PlayerContext = createContext<PlayerContextType>({
@@ -91,6 +102,11 @@ const PlayerContext = createContext<PlayerContextType>({
   clearSleepTimer: () => {},
   playbackRate: 1,
   setPlaybackRate: async () => {},
+  // ✨ 默认值
+  skipIntroDuration: 0,
+  setSkipIntroDuration: () => {},
+  skipOutroDuration: 0,
+  setSkipOutroDuration: () => {},
 });
 
 export const usePlayer = () => useContext(PlayerContext);
@@ -111,6 +127,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [sleepTimer, setSleepTimerState] = useState<number | null>(null);
   const [playbackRate, setPlaybackRateState] = useState(1);
+
+  // ✨ 新增 State
+  const [skipIntroDuration, setSkipIntroDurationState] = useState(0);
+  const [skipOutroDuration, setSkipOutroDurationState] = useState(0);
+  const isSkippingOutroRef = useRef(false); // 防止重复触发切歌
 
   const prevModeRef = useRef(mode);
   const isInitialLoadRef = useRef(true);
@@ -145,11 +166,36 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     playbackRateRef.current = playbackRate;
   }, [playbackRate]);
 
+  // ✨ 加载本地存储的跳过设置
+  useEffect(() => {
+    const loadSkipSettings = async () => {
+      try {
+        const intro = await AsyncStorage.getItem("skipIntroDuration");
+        const outro = await AsyncStorage.getItem("skipOutroDuration");
+        if (intro) setSkipIntroDurationState(parseInt(intro, 10));
+        if (outro) setSkipOutroDurationState(parseInt(outro, 10));
+      } catch (e) {
+        console.error("Failed to load skip settings", e);
+      }
+    };
+    loadSkipSettings();
+  }, []);
+
+  // ✨ 封装 Setter 并持久化
+  const setSkipIntroDuration = async (seconds: number) => {
+    setSkipIntroDurationState(seconds);
+    await AsyncStorage.setItem("skipIntroDuration", String(seconds));
+  };
+
+  const setSkipOutroDuration = async (seconds: number) => {
+    setSkipOutroDurationState(seconds);
+    await AsyncStorage.setItem("skipOutroDuration", String(seconds));
+  };
+
   // Setup Player
   useEffect(() => {
     const setupPlayer = async () => {
       try {
-        // 1️⃣ 只在 setupPlayer 里配置 iOS Audio Session
         await TrackPlayer.setupPlayer({
           iosCategory: IOSCategory.Playback,
           iosCategoryMode: IOSCategoryMode.Default,
@@ -160,8 +206,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             IOSCategoryOptions.DuckOthers,
           ],
         });
-
-        // 2️⃣ 只调用一次 updateOptions（不要再 platform 分支）
         await updatePlayerCapabilities();
         setIsSetup(true);
       } catch (error: any) {
@@ -172,7 +216,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
     };
-
     setupPlayer();
   }, []);
 
@@ -217,6 +260,34 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     }
   );
+
+  // ✨ 监控片尾自动跳过逻辑
+  useEffect(() => {
+    // 只有有声书且正在播放且设置了跳过片尾才生效
+    if (
+      !isPlaying ||
+      skipOutroDuration <= 0 ||
+      duration <= 0 ||
+      currentTrack?.type !== TrackType.AUDIOBOOK
+    )
+      return;
+
+    const remaining = duration - position;
+
+    // remaining > 1 是为了防止刚加载时 position 为 0 导致误判 (虽然 playTrack 会 Seek)
+    // 或者是防止 duration 还没完全加载出来
+    if (
+      remaining <= skipOutroDuration &&
+      remaining > 0.5 &&
+      !isSkippingOutroRef.current
+    ) {
+      console.log(
+        `[AutoSkip] Outro detected (${remaining.toFixed(1)}s left), skipping to next.`
+      );
+      isSkippingOutroRef.current = true;
+      playNext();
+    }
+  }, [position, duration, isPlaying, skipOutroDuration, currentTrack]);
 
   const getNextIndex = (
     currentIndex: number,
@@ -273,7 +344,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     if (isAudiobookAndroid) {
       capabilities.push(Capability.JumpBackward);
       capabilities.push(Capability.JumpForward);
-      // For some Android versions, jump buttons are preferred in compact view for audiobooks
       compactCapabilities.push(Capability.JumpBackward);
       compactCapabilities.push(Capability.JumpForward);
     }
@@ -285,7 +355,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       jumpForwardInterval: 15,
       // @ts-ignore
       jumpBackwardInterval: 15,
-      progressUpdateEventInterval: 2,
+      // ✨ 优化：缩短进度更新间隔以提高片尾跳过精度
+      progressUpdateEventInterval: 1,
       android: {
         appKilledPlaybackBehavior:
           AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
@@ -295,19 +366,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const playNext = async () => {
     const list = trackListRef.current;
-
-    // If Loop Single, just seek to 0 and play
     if (playModeRef.current === PlayMode.LOOP_SINGLE) {
       await seekTo(0);
       return;
     }
-
     const current = currentTrackRef.current;
     if (!current || list.length === 0) return;
-
     const currentIndex = list.findIndex((t) => t.id === current.id);
     if (currentIndex === -1) return;
-
     const nextIndex = getNextIndex(currentIndex, playModeRef.current, list);
     if (nextIndex !== -1) {
       await playTrack(list[nextIndex]);
@@ -320,16 +386,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     const list = trackListRef.current;
     const current = currentTrackRef.current;
     if (!current || list.length === 0) return;
-
     const currentIndex = list.findIndex((t) => t.id === current.id);
     if (currentIndex === -1) return;
-
     const prevIndex = getPreviousIndex(currentIndex, playModeRef.current, list);
     if (prevIndex !== -1) {
       await playTrack(list[prevIndex]);
     }
   };
-
 
   const togglePlayMode = () => {
     const modes = Object.values(PlayMode);
@@ -339,7 +402,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     savePlaybackState(mode);
   };
 
-  // Persistence logic
   const savePlaybackState = async (targetMode: string) => {
     if (!currentTrackRef.current || !isSetup) return;
     const state = {
@@ -403,10 +465,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Mode switching & Initial Load Persistence
   useEffect(() => {
     if (!isSetup || isAuthLoading) return;
-
     const handleModeChange = async () => {
       if (isInitialLoadRef.current) {
         await loadPlaybackState(mode);
@@ -418,11 +478,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         prevModeRef.current = mode;
       }
     };
-
     handleModeChange();
   }, [mode, isSetup, isAuthLoading]);
 
-  // Periodic persistence
   useEffect(() => {
     const interval = setInterval(() => {
       if (isPlaying && isSetup) {
@@ -435,6 +493,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const playTrack = async (track: Track, initialPosition?: number) => {
     if (!isSetup) return;
     try {
+      // ✨ 重置片尾跳过锁
+      isSkippingOutroRef.current = false;
+
       const playUri = await resolveTrackUri(track, { cacheEnabled });
       const artwork = resolveArtworkUri(track);
 
@@ -453,12 +514,25 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
       await updatePlayerCapabilities(track);
 
-      if (initialPosition) {
-        await TrackPlayer.seekTo(initialPosition);
+      // ✨ 处理初始位置 & 自动跳过片头
+      let startPos = 0;
+
+      // 优先级：显式指定的 initialPosition (恢复进度) > 自动跳过设置
+      if (initialPosition !== undefined) {
+        startPos = initialPosition;
+      } else if (
+        skipIntroDuration > 0 &&
+        track.type === TrackType.AUDIOBOOK // 仅有声书生效
+      ) {
+        console.log(`[AutoSkip] Skipping intro: ${skipIntroDuration}s`);
+        startPos = skipIntroDuration;
+      }
+
+      if (startPos > 0) {
+        await TrackPlayer.seekTo(startPos);
       }
 
       await TrackPlayer.play();
-      // Optimistically set current track for UI
       setCurrentTrack(track);
       savePlaybackState(mode);
     } catch (error) {
@@ -553,7 +627,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     if (currentTrackRef.current && user) {
       const deviceName = Device.modelName || "Mobile Device";
       const deviceId = device?.id;
-
       try {
         await addToHistory(
           currentTrackRef.current.id,
@@ -563,11 +636,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           deviceId,
           isSynced
         );
-
         if (currentTrackRef.current.albumId) {
           await addAlbumToHistory(currentTrackRef.current.albumId, user.id);
         }
-
         if (currentTrackRef.current.type === TrackType.AUDIOBOOK) {
           await reportAudiobookProgress({
             userId: user.id,
@@ -576,7 +647,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           });
         }
       } catch (e) {
-        // Silence background network errors for history recording
         console.log(
           "Background history sync skipped due to network/transient error"
         );
@@ -593,7 +663,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     lastAcceptedInvite,
   } = useSync();
 
-  // Sync Event Handlers - only active when synced
   useEffect(() => {
     if (isSynced && sessionId) {
       const handleSyncEvent = (payload: {
@@ -602,9 +671,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         fromUserId: number;
       }) => {
         if (payload.fromUserId === user?.id) return;
-
         isProcessingSync.current = true;
-
         switch (payload.type) {
           case "play":
             resume();
@@ -626,7 +693,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             Alert.alert("同步状态", "对方已断开同步连接");
             break;
         }
-
         setTimeout(() => {
           isProcessingSync.current = false;
         }, 100);
@@ -643,7 +709,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             data: currentTrack,
             targetSocketId: payload.fromSocketId,
           });
-
           setTimeout(() => {
             socketService.emit("sync_command", {
               sessionId: payload.sessionId,
@@ -665,7 +730,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [isSynced, sessionId, currentTrack, isPlaying, position]);
 
-  // Handle initial playback when session starts (for invited users)
   useEffect(() => {
     if (isSynced && lastAcceptedInvite && !currentTrack) {
       console.log("Applying invite context: playlist and track");
@@ -673,8 +737,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         setTrackList(lastAcceptedInvite.playlist);
       }
       if (lastAcceptedInvite.currentTrack) {
-        // playTrack(lastAcceptedInvite.currentTrack, lastAcceptedInvite.progress);
-        // Important: Wait for player setup before applying
         if (isSetup) {
           playTrack(
             lastAcceptedInvite.currentTrack,
@@ -685,7 +747,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [isSynced, lastAcceptedInvite, isSetup]);
 
-  // Global session event handlers - always active
   useEffect(() => {
     const handleSessionEnded = () => {
       Alert.alert("同步状态", "同步播放已结束");
@@ -693,7 +754,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       setParticipants([]);
       console.log("Sync session ended");
     };
-
     const handlePlayerLeft = (payload: {
       username: string;
       deviceName: string;
@@ -703,17 +763,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         `${payload.username} (${payload.deviceName}) 已断开同步连接`
       );
     };
-
     socketService.on("session_ended", handleSessionEnded);
     socketService.on("player_left", handlePlayerLeft);
-
     return () => {
       socketService.off("session_ended", handleSessionEnded);
       socketService.off("player_left", handlePlayerLeft);
     };
   }, [setSynced, setParticipants]);
 
-  // Broadcast local changes
   useEffect(() => {
     if (isSynced && sessionId && !isProcessingSync.current) {
       socketService.emit("sync_command", {
@@ -749,7 +806,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [trackList, isSynced, sessionId]);
 
-  // History Recording
   useEffect(() => {
     if (currentTrack) {
       recordHistory();
@@ -762,20 +818,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [isPlaying]);
 
-  // Periodic History Sync
   useEffect(() => {
     let interval: any;
     if (isPlaying) {
       interval = setInterval(() => {
         recordHistory();
-      }, 15000); // Sync every 15 seconds
+      }, 15000);
     }
     return () => {
       if (interval) clearInterval(interval);
     };
   }, [isPlaying]);
 
-  // Check Resume on mount
   useEffect(() => {
     if (user && isSetup && acceptRelay) {
       const checkResume = async () => {
@@ -784,12 +838,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           if (res.code === 200 && res.data) {
             const history = res.data;
             const deviceName = Device.modelName || "Mobile Device";
-
             const diff =
               new Date().getTime() - new Date(history.listenedAt).getTime();
             const isRecent = diff < 24 * 60 * 60 * 1000;
             const isOtherDevice = history.deviceName !== deviceName;
-
             if (isRecent && isOtherDevice && history.track) {
               const m = Math.floor(history.progress / 60);
               const s = Math.floor(history.progress % 60)
@@ -813,7 +865,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [user?.id, isSetup]);
 
-  // Sleep Timer Functions
   const setSleepTimer = (minutes: number) => {
     const expiryTime = Date.now() + minutes * 60 * 1000;
     setSleepTimerState(expiryTime);
@@ -823,17 +874,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     setSleepTimerState(null);
   };
 
-  // Monitor Sleep Timer
   useEffect(() => {
     if (!sleepTimer || !isPlaying) return;
-
     const checkTimer = setInterval(() => {
       if (Date.now() >= sleepTimer) {
         pause();
         setSleepTimerState(null);
       }
     }, 1000);
-
     return () => clearInterval(checkTimer);
   }, [sleepTimer, isPlaying]);
 
@@ -865,6 +913,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         clearSleepTimer,
         playbackRate,
         setPlaybackRate,
+        // ✨ Exports
+        skipIntroDuration,
+        setSkipIntroDuration,
+        skipOutroDuration,
+        setSkipOutroDuration,
       }}
     >
       {children}
