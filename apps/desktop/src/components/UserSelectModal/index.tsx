@@ -1,8 +1,8 @@
+import { getUserList } from "@soundx/services";
 import { Avatar, Checkbox, Col, Flex, Modal, Row, message, theme } from "antd";
 import React, { useEffect, useState } from "react";
 import type { User } from "../../models";
 import { socketService } from "../../services/socket";
-import { getUserList } from "@soundx/services";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { useSyncStore } from "../../store/sync";
@@ -207,16 +207,16 @@ const UserSelectModal: React.FC<UserSelectModalProps> = ({
               <Flex justify="space-between" align="center">
                 <Checkbox
                   value={user.id}
-                  checked={selectedUserIds.includes(user.id)}
-                  onChange={() => toggleSelect(user.id)}
-                  disabled={waitingUserIds.has(user.id)}
+                  checked={selectedUserIds.includes(user.id as number)}
+                  onChange={() => toggleSelect(user.id as number)}
+                  disabled={waitingUserIds.has(user.id as number)}
                 >
                   <Flex gap={8} align="center">
                     <Avatar size={30} style={{ backgroundColor: token.colorPrimary, }}>{user.username[0].toUpperCase()}</Avatar>
                     {user.username}
                   </Flex>
                 </Checkbox>
-                {getStatusText(user.id)}
+                {getStatusText(user.id as number)}
               </Flex>
             </Col>
           ))}

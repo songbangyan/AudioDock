@@ -1,35 +1,35 @@
 import {
-    AudioOutlined,
-    DeleteOutlined,
-    FolderFilled,
-    HomeOutlined,
-    InfoCircleOutlined,
-    MoreOutlined,
-    PlayCircleOutlined,
+  AudioOutlined,
+  DeleteOutlined,
+  FolderFilled,
+  HomeOutlined,
+  InfoCircleOutlined,
+  MoreOutlined,
+  PlayCircleOutlined,
 } from "@ant-design/icons";
 import {
-    batchDeleteItems,
-    deleteFolder,
-    deleteTrack,
-    getFolderContents,
-    getFolderRoots,
-    getFolderStats,
-    type Folder as FolderType,
+  batchDeleteItems,
+  deleteFolder,
+  deleteTrack,
+  getFolderContents,
+  getFolderRoots,
+  getFolderStats,
+  type Folder as FolderType,
 } from "@soundx/services";
 import {
-    Breadcrumb,
-    Button,
-    Checkbox,
-    Col,
-    Dropdown,
-    Empty,
-    message,
-    Modal,
-    Row,
-    Space,
-    Spin,
-    theme,
-    Typography,
+  Breadcrumb,
+  Button,
+  Checkbox,
+  Col,
+  Dropdown,
+  Empty,
+  message,
+  Modal,
+  Row,
+  Space,
+  Spin,
+  theme,
+  Typography,
 } from "antd";
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -59,8 +59,8 @@ const FolderPage: React.FC = () => {
 
   // Batch selection state
   const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [selectedFolders, setSelectedFolders] = useState<number[]>([]);
-  const [selectedTracks, setSelectedTracks] = useState<number[]>([]);
+  const [selectedFolders, setSelectedFolders] = useState<(number | string)[]>([]);
+  const [selectedTracks, setSelectedTracks] = useState<(number | string)[]>([]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -91,7 +91,7 @@ const FolderPage: React.FC = () => {
     fetchData();
   }, [id, mode]);
 
-  const handleFolderClick = (folderId: number) => {
+  const handleFolderClick = (folderId: number | string) => {
     if (isSelectionMode) {
       toggleFolderSelection(folderId);
       return;
@@ -110,13 +110,13 @@ const FolderPage: React.FC = () => {
     }
   };
 
-  const toggleFolderSelection = (id: number) => {
+  const toggleFolderSelection = (id: number | string) => {
     setSelectedFolders((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
   };
 
-  const toggleTrackSelection = (id: number) => {
+  const toggleTrackSelection = (id: number | string) => {
     setSelectedTracks((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
@@ -135,8 +135,8 @@ const FolderPage: React.FC = () => {
         setSelectedFolders([]);
         setSelectedTracks([]);
       } else {
-        setSelectedFolders(allFolderIds);
-        setSelectedTracks(allTrackIds);
+        setSelectedFolders(allFolderIds as number[]);
+        setSelectedTracks(allTrackIds as number[]);
       }
     }
   };
@@ -173,7 +173,7 @@ const FolderPage: React.FC = () => {
     });
   };
 
-  const handlePlayAll = async (folderId: number) => {
+  const handlePlayAll = async (folderId: number | string) => {
     try {
       const res = await getFolderContents(folderId);
       if (res.code === 200 && res.data.tracks.length > 0) {

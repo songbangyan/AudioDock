@@ -37,7 +37,7 @@ class SocketService extends SharedSocketService {
     super.connect({
         url,
         token,
-        userId: user.id,
+        userId: user.id as number,
         deviceName
     });
   }

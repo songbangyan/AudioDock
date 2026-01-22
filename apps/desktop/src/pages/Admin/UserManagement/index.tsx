@@ -109,11 +109,11 @@ const UserManagement: React.FC = () => {
                     {!record.is_admin && (
                          <>
                             <Button size="small" onClick={() => {
-                                setSelectedUserId(record.id);
+                                setSelectedUserId(record.id as number);
                                 setExpirationDays(null); // default to unset? or keep user input?
                                 setExpirationModalVisible(true);
                             }}>设置有效期</Button>
-                            <Button size="small" danger onClick={() => handleDeleteUser(record.id)}>删除</Button>
+                            <Button size="small" danger onClick={() => handleDeleteUser(record.id as number)}>删除</Button>
                         </>
                     )}
                 </Space>

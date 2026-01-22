@@ -14,7 +14,7 @@ services:
     # 容器内部端口 (3000) 默认对内部网络开放，无需 ports 字段映射到宿主机
     # 如果要直接测试 API，可以加上 ports: - "3000:3000"
     ports:
-      - "3000:3000"
+      - "3001:3000"
 
     environment:
       - AUDIO_BOOK_DIR=/audio
