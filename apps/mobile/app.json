@@ -2,7 +2,7 @@
   "expo": {
     "name": "AudioDock",
     "slug": "AudioDock 听见你的声音",
-    "version": "1.0.61",
+    "version": "1.0.62",
     "orientation": "default",
     "icon": "../../images/logo.png",
     "scheme": "audiodock",
@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff" 
+      "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
