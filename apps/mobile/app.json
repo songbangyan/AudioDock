@@ -28,7 +28,9 @@
               "NSIncludesSubdomains": true
             }
           }
-        }
+        },
+        "NSPhotoLibraryAddUsageDescription": "Allow AudioDock to save photos to your library so you can save the donation QR code.",
+        "NSPhotoLibraryUsageDescription": "Allow AudioDock to access your photo library."
       }
     },
     "android": {

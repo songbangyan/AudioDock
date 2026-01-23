@@ -196,6 +196,14 @@ docker-compose build --no-cache
 docker-compose up
 ```
 
+## 赞赏我
+
+开发不易，感谢🙏赞赏支持！我会努力更新的！
+
+<p align="center">
+<img src="./images/ctjj.png" width="200" />
+</p>
+
 ## ⭐ Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=mmdctjj/AudioDock&type=Date)](https://star-history.com/#mmdctjj/AudioDock&Date)

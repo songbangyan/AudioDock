@@ -689,7 +689,7 @@ const styles = StyleSheet.create({
   audiobookControls: {
     flexDirection: "row",
     justifyContent: "space-around",
-    alignItems: "center",
+    alignItems: "flex-start",
     paddingVertical: 20,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
@@ -699,7 +699,6 @@ const styles = StyleSheet.create({
   controlButton: {
     alignItems: "center",
     justifyContent: "center",
-    minWidth: 80,
   },
   controlLabel: {
     fontSize: 12,
@@ -708,6 +707,5 @@ const styles = StyleSheet.create({
   skipButton: {
     alignItems: "center",
     justifyContent: "center",
-    minWidth: 60,
   },
 });

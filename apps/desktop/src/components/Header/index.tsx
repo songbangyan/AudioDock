@@ -3,6 +3,7 @@ import {
   DatabaseOutlined,
   DeleteOutlined,
   GithubOutlined,
+  HeartOutlined,
   ImportOutlined,
   LeftOutlined,
   LogoutOutlined,
@@ -45,7 +46,8 @@ import {
   Progress,
   Segmented,
   theme,
-  Tooltip
+  Tooltip,
+  Typography
 } from "antd";
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -59,6 +61,7 @@ import { usePlayMode } from "../../utils/playMode";
 import SearchResults from "../SearchResults";
 import styles from "./index.module.less";
 
+import ctjj from "../../assets/ctjj.png";
 import emby from "../../assets/emby.png";
 import logo from "../../assets/logo.png";
 import subsonic from "../../assets/subsonic.png";
@@ -180,6 +183,7 @@ const Header: React.FC = () => {
 
   // Import task state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
   const [importTask, setImportTask] = useState<ImportTask | null>(null);
 
   const fetchSearchMeta = async () => {
@@ -610,6 +614,13 @@ const Header: React.FC = () => {
                 <RetweetOutlined />
                 全量更新音频文件
               </div>
+              <div
+                className={styles.userMenuItem}
+                onClick={() => setIsDonationModalOpen(true)}
+              >
+                <HeartOutlined />
+                赞赏我
+              </div>
               <div className={styles.userMenuItem}>
                 <DeleteOutlined />
                 清空缓存文件
@@ -705,6 +716,31 @@ const Header: React.FC = () => {
             共检测到 {importTask?.total || 0} 个音频文件，已经入库{" "}
             {importTask?.current || 0} 个
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        title="赞赏开发者"
+        open={isDonationModalOpen}
+        onCancel={() => setIsDonationModalOpen(false)}
+        footer={null}
+        width={340}
+        centered
+      >
+        <div style={{ textAlign: "center", padding: "10px 0" }}>
+          <Typography.Text type="secondary" style={{ marginBottom: 16, display: "block" }}>
+            如果您觉得 AudioDock 对您有帮助<br />欢迎赞赏支持！
+          </Typography.Text>
+          <img
+            src={ctjj}
+            alt="Donation QR Code"
+            style={{
+              width: "100%",
+              maxWidth: 280,
+              borderRadius: 8,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            }}
+          />
         </div>
       </Modal>
     </div>
