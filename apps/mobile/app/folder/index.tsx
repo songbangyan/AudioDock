@@ -3,14 +3,14 @@ import { batchDeleteItems, Folder as FolderType, getFolderContents, getFolderRoo
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FolderMoreModal } from "../../src/components/FolderMoreModal";
@@ -34,7 +34,7 @@ export default function FolderRootsScreen() {
 
   // Selection state
   const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [selectedFolders, setSelectedFolders] = useState<number[]>([]);
+  const [selectedFolders, setSelectedFolders] = useState<(number| string)[]>([]);
 
   // Adaptive Grid Calculation
   const GRID_ITEM_WIDTH = 100;
@@ -76,11 +76,59 @@ export default function FolderRootsScreen() {
     }
   };
 
+  const getAllTracks = async (folderId: number | string): Promise<any[]> => {
+    try {
+      const res = await getFolderContents(folderId);
+      if (res.code !== 200 || !res.data) return [];
+      
+      let allTracks = res.data.tracks || [];
+      
+      if (res.data.children && res.data.children.length > 0) {
+        // Fetch children in parallel
+        const childrenTracks = await Promise.all(
+          res.data.children.map((child: FolderType) => getAllTracks(child.id))
+        );
+        childrenTracks.forEach(tracks => {
+          allTracks = [...allTracks, ...tracks];
+        });
+      }
+      return allTracks;
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
+  };
+
+  const handlePlayCurrent = async () => {
+    // There is no loading state here UI-wise except maybe a toast or modal is better?
+    // Using simple Alert for now or maybe just blocking?
+    // We can reuse the loading state if we want to show full screen loader.
+    // Or just let it run.
+    try {
+      const allTracks: any[] = [];
+      if (folders.length > 0) {
+        // Show some feedback?
+        const rootTracks = await Promise.all(
+          folders.map((child: FolderType) => getAllTracks(child.id))
+        );
+        rootTracks.forEach((t) => allTracks.push(...t));
+      }
+
+      if (allTracks.length > 0) {
+        playTrackList(allTracks, 0);
+      } else {
+        Alert.alert("提示", "没有可播放的音轨");
+      }
+    } catch (error) {
+      Alert.alert("提示", "播放失败");
+    }
+  };
+
   const handlePlayAll = async (folder: FolderType) => {
     try {
-      const res = await getFolderContents(folder.id);
-      if (res.code === 200 && res.data.tracks.length > 0) {
-        playTrackList(res.data.tracks, 0);
+      const tracks = await getAllTracks(folder.id);
+      if (tracks.length > 0) {
+        playTrackList(tracks, 0);
       } else {
         Alert.alert("提示", "该文件夹下没有可播放的音轨");
       }
@@ -97,7 +145,7 @@ export default function FolderRootsScreen() {
     router.push(`/folder/${folder.id}` as any);
   };
 
-  const toggleFolderSelection = (id: number) => {
+  const toggleFolderSelection = (id: number | string) => {
     setSelectedFolders((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
@@ -226,6 +274,14 @@ export default function FolderRootsScreen() {
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>文件夹</Text>
         <View style={styles.headerRight}>
+          {!isSelectionMode && (
+            <TouchableOpacity
+              onPress={handlePlayCurrent}
+              style={styles.headerButton}
+            >
+              <Ionicons name="play-circle-outline" size={22} color={colors.text} />
+            </TouchableOpacity>
+          )}
           {!isSelectionMode && (
             <TouchableOpacity 
               onPress={() => setLayoutMode(layoutMode === "list" ? "grid" : "list")} 

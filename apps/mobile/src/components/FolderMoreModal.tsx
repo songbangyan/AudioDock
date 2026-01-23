@@ -2,12 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { deleteFolder, Folder } from "@soundx/services";
 import React from "react";
 import {
-    Alert,
-    Modal,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../context/ThemeContext";
@@ -18,7 +18,7 @@ interface FolderMoreModalProps {
   onClose: () => void;
   onPlayAll: (folder: Folder) => void;
   onShowProperties: (folder: Folder) => void;
-  onDeleteSuccess?: (folderId: number) => void;
+  onDeleteSuccess?: (folderId: (number | string)) => void;
 }
 
 export const FolderMoreModal: React.FC<FolderMoreModalProps> = ({

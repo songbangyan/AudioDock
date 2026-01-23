@@ -173,17 +173,75 @@ const FolderPage: React.FC = () => {
     });
   };
 
-  const handlePlayAll = async (folderId: number | string) => {
+  const getAllTracks = async (folderId: number | string): Promise<any[]> => {
     try {
       const res = await getFolderContents(folderId);
-      if (res.code === 200 && res.data.tracks.length > 0) {
-        setPlaylist(res.data.tracks);
-        play(res.data.tracks[0]);
+      if (res.code !== 200 || !res.data) return [];
+      
+      let allTracks = res.data.tracks || [];
+      
+      if (res.data.children && res.data.children.length > 0) {
+        // Fetch children in parallel
+        const childrenTracks = await Promise.all(
+          res.data.children.map((child: FolderType) => getAllTracks(child.id))
+        );
+        childrenTracks.forEach(tracks => {
+          allTracks = [...allTracks, ...tracks];
+        });
+      }
+      return allTracks;
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
+  };
+
+  const handlePlayAll = async (folderId: number | string) => {
+    const hide = message.loading('正在获取所有歌曲...', 0);
+    try {
+      const tracks = await getAllTracks(folderId);
+      hide();
+      if (tracks.length > 0) {
+        setPlaylist(tracks);
+        play(tracks[0]);
+        message.success(`已添加 ${tracks.length} 首歌曲到播放列表`);
       } else {
         message.info("该文件夹下没有可播放的音轨");
       }
     } catch (error) {
+      hide();
       message.error("播放失败");
+    }
+  };
+
+  const handlePlayCurrent = async () => {
+    if (!data) return;
+    const hide = message.loading("正在获取所有歌曲...", 0);
+    try {
+      let tracks: any[] = [];
+      if (id) {
+        // Specific folder
+        tracks = await getAllTracks(id);
+      } else {
+        // Root: iterate children
+        if (data.children) {
+          const rootTracks = await Promise.all(
+            data.children.map((child: FolderType) => getAllTracks(child.id))
+          );
+          rootTracks.forEach((t) => tracks.push(...t));
+        }
+      }
+      hide();
+      if (tracks.length > 0) {
+        setPlaylist(tracks);
+        play(tracks[0]);
+        message.success(`已添加 ${tracks.length} 首歌曲到播放列表`);
+      } else {
+        message.info("没有可播放的歌曲");
+      }
+    } catch (e) {
+      hide();
+      message.error("操作失败");
     }
   };
 
@@ -326,13 +384,23 @@ const FolderPage: React.FC = () => {
         <Breadcrumb items={breadcrumbItems} className={styles.breadcrumb} />
         <div className={styles.headerActions}>
           {!isSelectionMode ? (
-            <Button
-              size="small"
-              onClick={() => setIsSelectionMode(true)}
-              disabled={!data?.children.length && !data?.tracks.length}
-            >
-              批量编辑
-            </Button>
+            <Space>
+              <Button
+                icon={<PlayCircleOutlined />}
+                type="primary"
+                onClick={handlePlayCurrent}
+                disabled={!data?.children.length && !data?.tracks.length}
+              >
+                播放全部
+              </Button>
+              <Button
+                size="small"
+                onClick={() => setIsSelectionMode(true)}
+                disabled={!data?.children.length && !data?.tracks.length}
+              >
+                批量编辑
+              </Button>
+            </Space>
           ) : (
             <Space size="small">
               <Button size="small" onClick={handleSelectAll}>

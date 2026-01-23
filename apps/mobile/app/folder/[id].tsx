@@ -184,11 +184,48 @@ export default function FolderDetailScreen() {
     );
   };
 
+  const getAllTracks = async (folderId: number | string): Promise<any[]> => {
+    try {
+      const res = await getFolderContents(folderId);
+      if (res.code !== 200 || !res.data) return [];
+      
+      let allTracks = res.data.tracks || [];
+      
+      if (res.data.children && res.data.children.length > 0) {
+        // Fetch children in parallel
+        const childrenTracks = await Promise.all(
+          res.data.children.map((child: Folder) => getAllTracks(child.id))
+        );
+        childrenTracks.forEach(tracks => {
+          allTracks = [...allTracks, ...tracks];
+        });
+      }
+      return allTracks;
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
+  };
+
+  const handlePlayCurrent = async () => {
+    if (!data) return;
+    try {
+      const tracks = await getAllTracks(Number(id)); // Use id from params
+      if (tracks.length > 0) {
+        playTrackList(tracks, 0);
+      } else {
+        Alert.alert("提示", "该文件夹下没有可播放的音轨");
+      }
+    } catch (error) {
+      Alert.alert("提示", "播放失败");
+    }
+  };
+
   const handlePlayAll = async (folder: Folder) => {
     try {
-      const res = await getFolderContents(folder.id);
-      if (res.code === 200 && res.data.tracks.length > 0) {
-        playTrackList(res.data.tracks, 0);
+      const tracks = await getAllTracks(folder.id);
+      if (tracks.length > 0) {
+        playTrackList(tracks, 0);
       } else {
         Alert.alert("提示", "该文件夹下没有可播放的音轨");
       }
@@ -316,6 +353,14 @@ export default function FolderDetailScreen() {
           {data?.name || "文件夹"}
         </Text>
         <View style={styles.headerRight}>
+          {!isSelectionMode && (
+            <TouchableOpacity
+              onPress={handlePlayCurrent}
+              style={styles.headerButton}
+            >
+              <Ionicons name="play-circle-outline" size={22} color={colors.text} />
+            </TouchableOpacity>
+          )}
           {!isSelectionMode && (
             <TouchableOpacity 
               onPress={() => setLayoutMode(layoutMode === "list" ? "grid" : "list")} 
