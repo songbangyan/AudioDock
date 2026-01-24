@@ -2,10 +2,8 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  check,
-  setServiceConfig,
   SOURCEMAP,
-  SOURCETIPSMAP,
+  SOURCETIPSMAP
 } from "@soundx/services";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -24,10 +22,6 @@ import {
 } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  useNativeAdapter,
-  useSubsonicAdapter,
-} from "../../../packages/services/src/adapter/manager";
 import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/context/ThemeContext";
 const logo = require("../assets/images/logo.png");
@@ -36,7 +30,7 @@ const embyLogo = require("../assets/images/emby.png");
 
 export default function LoginScreen() {
   const { colors } = useTheme();
-  const { login, register } = useAuth();
+  const { login, register, switchServer, sourceType: authSourceType } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -48,6 +42,12 @@ export default function LoginScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [statusMessage, setStatusMessage] = useState<"ok" | "error">("error");
   const [sourceType, setSourceType] = useState<string>("AudioDock");
+
+  useEffect(() => {
+    if (authSourceType) {
+      setSourceType(authSourceType);
+    }
+  }, [authSourceType]);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<{ label: string; value: string }[]>([]);
 
@@ -67,33 +67,28 @@ export default function LoginScreen() {
       return;
     }
 
-    const mappedType = SOURCEMAP[sourceType as keyof typeof SOURCEMAP] || "audiodock";
+    const mappedType =
+      SOURCEMAP[sourceType as keyof typeof SOURCEMAP] || "audiodock";
     try {
-      // Configure adapter for check
-      if (mappedType === "subsonic") {
-        useSubsonicAdapter();
-      } else {
-        useNativeAdapter();
-      }
-
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-      const response = await check();
-      clearTimeout(timeoutId);
-      if (response && response.code === 200) {
-        setStatusMessage("ok");
-        restoreCredentials(address, sourceType);
-        return;
-      }
-      
-      if (mappedType === "subsonic" && response) {
-        setStatusMessage("ok");
-        restoreCredentials(address, sourceType);
-        return;
-      }
+      // Determine the ping URL based on source type
+      const pingUrl = mappedType === "subsonic"
+        ? `${address.replace(/\/+$/, "")}/rest/ping.view?v=1.16.1&c=SoundX&f=json`
+        : `${address.replace(/\/+$/, "")}/hello`;
 
-      throw new Error();
+      const response = await fetch(pingUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      // For Subsonic, a 401 also means the server is alive (just needs auth)
+      // For Native, we check /hello which should be public
+      if (response.ok || (mappedType === "subsonic" && response.status === 401)) {
+        setStatusMessage("ok");
+        restoreCredentials(address, sourceType);
+      } else {
+        setStatusMessage("error");
+      }
     } catch (error) {
       setStatusMessage("error");
     }
@@ -120,7 +115,7 @@ export default function LoginScreen() {
     try {
       const addressKey = `serverAddress_${type}`;
       const historyKey = `serverHistory_${type}`;
-      
+
       const savedAddress = await AsyncStorage.getItem(addressKey);
       const savedHistory = await AsyncStorage.getItem(historyKey);
 
@@ -195,32 +190,22 @@ export default function LoginScreen() {
       return;
     }
     // Registration check skipped for Subsonic as it throws "Not supported"
-    
+      console.log("handleSubmit", serverAddress, username, password);
     try {
       setLoading(true);
-      const mappedType = SOURCEMAP[sourceType as keyof typeof SOURCEMAP] || "audiodock";
-      const addressKey = `serverAddress_${sourceType}`;
+      
       const credsKey = `creds_${sourceType}_${serverAddress}`;
 
-      await AsyncStorage.setItem("serverAddress", serverAddress);
-      await AsyncStorage.setItem(addressKey, serverAddress);
-      await AsyncStorage.setItem("selectedSourceType", sourceType);
+      // 1. Save all configurations to storage first
+      await AsyncStorage.setItem(credsKey, JSON.stringify({ username, password }));
       await saveToHistory(serverAddress, sourceType);
+      
+      // 2. Use the unified switchServer logic to update baseURL, adapter and service config
+      // This ensures that the next request (login/register) goes to the correct server with correct adapter
+      await switchServer(serverAddress, sourceType);
 
-      // Save credentials for this server before logging in/registering
-      await AsyncStorage.setItem(
-        credsKey,
-        JSON.stringify({ username, password }),
-      );
-
-      // Configure Adapter and Service with REAL credentials
-      setServiceConfig({ username, password, clientName: "SoundX Mobile" });
-      if (mappedType === "subsonic") {
-        useSubsonicAdapter();
-      } else {
-        useNativeAdapter();
-      }
-
+      // 3. Perform login or registration
+      const mappedType = SOURCEMAP[sourceType as keyof typeof SOURCEMAP] || "audiodock";
       if (isLogin) {
         await login({ username, password });
       } else {
@@ -229,7 +214,6 @@ export default function LoginScreen() {
         }
         await register({ username, password });
       }
-
       router.replace("/(tabs)");
     } catch (error: any) {
       console.error(error);
@@ -296,13 +280,24 @@ export default function LoginScreen() {
                         }),
                       }}
                     >
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <View
+                        style={{ flexDirection: "row", alignItems: "center" }}
+                      >
                         {key === "Emby" ? (
-                          <Image source={embyLogo} style={{ width: 20, height: 20, marginRight: 6 }} />
+                          <Image
+                            source={embyLogo}
+                            style={{ width: 20, height: 20, marginRight: 6 }}
+                          />
                         ) : key === "Subsonic" ? (
-                          <Image source={subsonicLogo} style={{ width: 20, height: 20, marginRight: 6 }} />
+                          <Image
+                            source={subsonicLogo}
+                            style={{ width: 20, height: 20, marginRight: 6 }}
+                          />
                         ) : (
-                          <Image source={logo} style={{ width: 20, height: 20, marginRight: 6 }} />
+                          <Image
+                            source={logo}
+                            style={{ width: 20, height: 20, marginRight: 6 }}
+                          />
                         )}
                         <Text
                           style={{

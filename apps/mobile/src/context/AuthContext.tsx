@@ -1,11 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-    login as loginApi,
-    register as registerApi,
-    setServiceConfig,
-    SOURCEMAP,
-    useNativeAdapter,
-    useSubsonicAdapter,
+  login as loginApi,
+  register as registerApi,
+  setServiceConfig,
+  SOURCEMAP,
+  useNativeAdapter,
+  useSubsonicAdapter,
 } from "@soundx/services";
 import * as Device from 'expo-device';
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -49,9 +49,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [sourceType, setSourceTypeDirectly] = useState<string>("AudioDock");
   const [isLoading, setIsLoading] = useState(true);
 
-  const setSourceType = async (type: string) => {
+  const setSourceType = (type: string) => {
     setSourceTypeDirectly(type);
-    await AsyncStorage.setItem("selectedSourceType", type);
   };
 
   useEffect(() => {
@@ -83,10 +82,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const mappedType = SOURCEMAP[savedType as keyof typeof SOURCEMAP] || "audiodock";
       const credsKey = `creds_${savedType}_${savedAddress}`;
       const savedCreds = await AsyncStorage.getItem(credsKey);
+      let username = undefined;
+      let password = undefined;
       if (savedCreds) {
-        const { username, password } = JSON.parse(savedCreds);
-        setServiceConfig({ username, password, clientName: "SoundX Mobile" });
+        const creds = JSON.parse(savedCreds);
+        username = creds.username;
+        password = creds.password;
       }
+      setServiceConfig({ username, password, clientName: "SoundX Mobile", baseUrl: savedAddress });
 
       if (mappedType === "subsonic") {
         useSubsonicAdapter();
@@ -103,6 +106,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const login = async (credentials: Partial<User>) => {
     try {
       const deviceName = Device.modelName || 'Mobile Device';
+      console.log("credentials", credentials);
+      console.log("deviceName", deviceName);
       const res = await loginApi({ ...credentials, deviceName });
       if (res.code === 200 && res.data) {
         const { token: newToken, device, ...userData } = res.data;
@@ -168,9 +173,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const targetType = type || sourceType;
       const mappedType = SOURCEMAP[targetType as keyof typeof SOURCEMAP] || "audiodock";
 
-      await AsyncStorage.setItem("serverAddress", url);
-      await AsyncStorage.setItem("selectedSourceType", targetType);
+      // IMPORTANT: Update baseURL first so subsequent calls use the correct endpoint
       setBaseURL(url);
+      await AsyncStorage.setItem("serverAddress", url);
+      await AsyncStorage.setItem(`serverAddress_${targetType}`, url);
+      await AsyncStorage.setItem("selectedSourceType", targetType);
       setSourceTypeDirectly(targetType);
 
       // Configure adapter for the new server
@@ -184,7 +191,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         password = creds.password;
       }
 
-      setServiceConfig({ username, password, clientName: "SoundX Mobile" });
+      // Ensure baseUrl is passed to ServiceConfig for Subsonic etc.
+      setServiceConfig({ username, password, clientName: "SoundX Mobile", baseUrl: url });
       if (mappedType === "subsonic") {
         useSubsonicAdapter();
       } else {

@@ -16,7 +16,7 @@ import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import styles from "./index.module.less";
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
 interface CoverComponent
   extends React.FC<{
@@ -195,9 +195,9 @@ const Cover: CoverComponent = ({ item, size, isTrack = false, onClick }) => {
       <Title level={5} className={styles.title}>
         {item.name}
       </Title>
-      <Text type="secondary" className={styles.artist}>
+      <div className={styles.artist}>
         {item.artist}
-      </Text>
+      </div>
     </div>
   );
 };

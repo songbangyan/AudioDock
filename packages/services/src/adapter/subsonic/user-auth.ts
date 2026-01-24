@@ -67,8 +67,7 @@ export class SubsonicAuthAdapter implements IAuthAdapter {
        // We assume "login" in Subsonic context means "ping settings are valid".
        // The actual login happens by configuring the client.
        // So this might just be a ping.
-       const ping = await this.client.get<{ status: string, version: string }>("ping");
-       if (!ping) throw new Error("Connection failed");
+       console.log("ping", user);
        
        const config = getServiceConfig();
        // Try to get real user info if username is provided in config
@@ -101,6 +100,7 @@ export class SubsonicAuthAdapter implements IAuthAdapter {
 
     async check() {
         try {
+            console.log("ping2222");
             await this.client.get("ping");
             return this.response(true);
         } catch {

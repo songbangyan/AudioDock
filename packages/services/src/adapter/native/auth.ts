@@ -4,6 +4,7 @@ import { IAuthAdapter } from "../interface-user-auth";
 
 export class NativeAuthAdapter implements IAuthAdapter {
   async login(user: Partial<User> & { deviceName?: string }) {
+    console.log("login", user);
     const { deviceName = "Unknown Device", ...userData } = user;
     return request.post<any, ISuccessResponse<User & { token: string, device: Device }>>(
       "/auth/login",

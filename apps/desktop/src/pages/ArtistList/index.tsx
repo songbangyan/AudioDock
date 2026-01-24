@@ -156,7 +156,16 @@ const ArtistList: React.FC = () => {
                     icon={!artist.avatar && artist.name[0]}
                   />
                 </div>
-                <Flex vertical>
+                <Flex
+                  vertical
+                  style={{
+                    width: "100px",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    textAlign: "center",
+                  }}
+                >
                   <Text>{artist.name}</Text>
                 </Flex>
               </Flex>

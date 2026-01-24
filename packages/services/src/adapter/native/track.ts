@@ -12,6 +12,10 @@ export class NativeTrackAdapter implements ITrackAdapter {
     return request.get<any, ISuccessResponse<Track[]>>("/track/list");
   }
 
+  getAllTracks() {
+    return request.get<any, ISuccessResponse<Track[]>>("/track/list");
+  }
+
   getTrackTableList(params: {
     pageSize: number;
     current: number;

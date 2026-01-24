@@ -1,6 +1,6 @@
 import type {
-    ISuccessResponse,
-    Track
+  ISuccessResponse,
+  Track
 } from "../../models";
 import { ITrackAdapter } from "../interface";
 import { SubsonicClient } from "./client";
@@ -69,6 +69,18 @@ export class SubsonicTrackAdapter implements ITrackAdapter {
     return this.response(tracks);
   }
 
+  async getAllTracks() {
+      // Assuming backend supports getAllTracks or similar, or we use a large search
+      // The user stated "backend already has it", implying a direct endpoint or capability
+      // falling back to search3 with empty query which works on some servers (Navidrome) to return all
+      const res = await this.client.get<{searchResult3: { song: SubsonicChild[] }}>("search3", { query: '', songCount: 50000 });
+      console.log(res, 'res');
+      const tracks = await this.mapTracksWithLyrics(res.searchResult3?.song || []);
+      console.log(res, 'res');
+      console.log(tracks, 'tracks');
+      return this.response(tracks);
+  }
+
   async getTrackTableList(params: {
     pageSize: number;
     current: number;
@@ -93,12 +105,13 @@ export class SubsonicTrackAdapter implements ITrackAdapter {
     loadCount: number;
     type?: string;
   }) {
+      const tracks = await this.getAllTracks();
      // Similar limitation.
      return this.response({
          pageSize: params.pageSize,
          loadCount: params.loadCount,
-         list: [],
-         total: 0,
+         list: tracks.data,
+         total: tracks.data.length,
          hasMore: false
      });
   }

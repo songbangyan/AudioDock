@@ -3,6 +3,7 @@ export interface ServiceConfig {
   password?: string; // For Subsonic (plaintext or hex-encoded if we want to separate)
   token?: string;    // For Native
   clientName?: string;
+  baseUrl?: string;
 }
 
 let globalConfig: ServiceConfig = {

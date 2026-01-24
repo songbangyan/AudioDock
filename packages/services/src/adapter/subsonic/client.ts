@@ -54,6 +54,10 @@ export class SubsonicClient {
     }
 
     private getBaseUrl(): string {
+        const config = getServiceConfig();
+        if (config.baseUrl) {
+            return config.baseUrl;
+        }
         return getBaseURL();
     }
 
@@ -83,11 +87,16 @@ export class SubsonicClient {
         const baseURL = this.getBaseUrl();
         if (!baseURL) throw new Error("Base URL not set");
 
-        const response = await this.axios.get<SubsonicResponse<T>>(this.buildUrl(baseURL, endpoint), {
-            params: {
-                ...authParams,
-                ...params
-            }
+        const url = this.buildUrl(baseURL, endpoint);
+        const requestParams = {
+            ...authParams,
+            ...params
+        };
+        
+        console.log(`[Subsonic] GET ${url}?${new URLSearchParams(requestParams).toString()}`);
+
+        const response = await this.axios.get<SubsonicResponse<T>>(url, {
+            params: requestParams
         });
         
         const data = response.data?.["subsonic-response"];
@@ -102,11 +111,16 @@ export class SubsonicClient {
         const baseURL = this.getBaseUrl();
         if (!baseURL) throw new Error("Base URL not set");
 
-        const response = await this.axios.post<SubsonicResponse<T>>(this.buildUrl(baseURL, endpoint), body, {
-            params: {
-                ...authParams,
-                ...params
-            }
+        const url = this.buildUrl(baseURL, endpoint);
+        const requestParams = {
+            ...authParams,
+            ...params
+        };
+
+        console.log(`[Subsonic] POST ${url}?${new URLSearchParams(requestParams).toString()}`);
+
+        const response = await this.axios.post<SubsonicResponse<T>>(url, body, {
+            params: requestParams
         });
         const data = response.data?.["subsonic-response"];
         if (data && data.status === "failed") {

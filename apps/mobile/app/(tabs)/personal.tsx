@@ -1,35 +1,35 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import {
-  createImportTask,
-  createPlaylist,
-  getAlbumHistory,
-  getFavoriteAlbums,
-  getFavoriteTracks,
-  getImportTask,
-  getPlaylists,
-  getRunningImportTask,
-  getTrackHistory,
-  SOURCEMAP,
-  SOURCETIPSMAP,
-  TaskStatus,
-  type ImportTask,
+    createImportTask,
+    createPlaylist,
+    getAlbumHistory,
+    getFavoriteAlbums,
+    getFavoriteTracks,
+    getImportTask,
+    getPlaylists,
+    getRunningImportTask,
+    getTrackHistory,
+    SOURCEMAP,
+    SOURCETIPSMAP,
+    TaskStatus,
+    type ImportTask,
 } from "@soundx/services";
 import { Asset } from 'expo-asset';
 import * as MediaLibrary from 'expo-media-library';
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../src/context/AuthContext";
@@ -38,8 +38,8 @@ import { useTheme } from "../../src/context/ThemeContext";
 import { getBaseURL } from "../../src/https";
 import { Playlist, Track } from "../../src/models";
 import {
-  getDownloadedTracks,
-  removeDownloadedTrack,
+    getDownloadedTracks,
+    removeDownloadedTrack,
 } from "../../src/services/cache";
 import { getImageUrl } from "../../src/utils/image";
 import { usePlayMode } from "../../src/utils/playMode";
@@ -117,6 +117,7 @@ export default function PersonalScreen() {
   const [loading, setLoading] = useState(false);
 
   const [serverModalVisible, setServerModalVisible] = useState(false);
+  const [modalSourceType, setModalSourceType] = useState(sourceType);
   const [serverHistory, setServerHistory] = useState<
     { label: string; value: string }[]
   >([]);
@@ -173,9 +174,16 @@ export default function PersonalScreen() {
 
   useEffect(() => {
     if (serverModalVisible) {
+      setModalSourceType(sourceType);
       loadServerHistory(sourceType);
     }
   }, [serverModalVisible, sourceType, loadServerHistory]);
+
+  useEffect(() => {
+    if (serverModalVisible) {
+      loadServerHistory(modalSourceType);
+    }
+  }, [modalSourceType, serverModalVisible, loadServerHistory]);
 
   useEffect(() => {
     checkUpdate();
@@ -1002,12 +1010,12 @@ export default function PersonalScreen() {
               }}
             >
               {Object.keys(SOURCEMAP).map((key) => {
-                const isActive = sourceType === key;
+                const isActive = modalSourceType === key;
                 const isDisabled = key === "Emby";
                 return (
                   <TouchableOpacity
                     key={key}
-                    onPress={() => !isDisabled && setSourceType(key)}
+                    onPress={() => !isDisabled && setModalSourceType(key)}
                     disabled={isDisabled}
                     style={{
                       flex: 1,
@@ -1021,11 +1029,11 @@ export default function PersonalScreen() {
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       {key === "Emby" ? (
-                        <Image source={embyLogo} style={{ width: 18, height: 18, marginRight: 4 }} />
+                        <Image source={embyLogo} style={{ width: 20, height: 20, marginRight: 6 }} />
                       ) : key === "Subsonic" ? (
-                        <Image source={subsonicLogo} style={{ width: 16, height: 16, marginRight: 4 }} />
+                        <Image source={subsonicLogo} style={{ width: 20, height: 20, marginRight: 6 }} />
                       ) : (
-                        <Image source={logo} style={{ width: 16, height: 16, marginRight: 4 }} />
+                        <Image source={logo} style={{ width: 20, height: 20, marginRight: 6 }} />
                       )}
                       <Text
                         style={{
@@ -1050,7 +1058,7 @@ export default function PersonalScreen() {
                 textAlign: "center",
               }}
             >
-              {SOURCETIPSMAP[sourceType as keyof typeof SOURCETIPSMAP]}
+              {SOURCETIPSMAP[modalSourceType as keyof typeof SOURCETIPSMAP]}
             </Text>
 
             <FlatList
@@ -1066,12 +1074,12 @@ export default function PersonalScreen() {
                   <TouchableOpacity
                     style={[
                       { flex: 1, paddingVertical: 15, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center' },
-                      getBaseURL() === item.value && {
+                      getBaseURL() === item.value && sourceType === modalSourceType && {
                         backgroundColor: "rgba(150,150,150,0.1)",
                       },
                     ]}
                     onPress={async () => {
-                      await switchServer(item.value, sourceType);
+                      await switchServer(item.value, modalSourceType);
                       setServerModalVisible(false);
                     }}
                   >
@@ -1081,7 +1089,7 @@ export default function PersonalScreen() {
                           styles.serverItemText,
                           {
                             color:
-                              getBaseURL() === item.value
+                              getBaseURL() === item.value && sourceType === modalSourceType
                                 ? colors.primary
                                 : colors.text,
                           },
@@ -1090,7 +1098,7 @@ export default function PersonalScreen() {
                         {item.label}
                       </Text>
                     </View>
-                    {getBaseURL() === item.value && (
+                    {getBaseURL() === item.value && sourceType === modalSourceType && (
                       <Ionicons
                         name="checkmark-circle"
                         size={20}

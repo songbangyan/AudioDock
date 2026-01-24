@@ -2,6 +2,7 @@ import { Album, Artist, ILoadMoreData, ISuccessResponse, ITableData, Playlist, T
 
 export interface ITrackAdapter {
   getTrackList(): Promise<ISuccessResponse<Track[]>>;
+  getAllTracks(): Promise<ISuccessResponse<Track[]>>;
   getTrackTableList(params: { pageSize: number; current: number }): Promise<ISuccessResponse<ITableData<Track[]>>>;
   loadMoreTrack(params: { pageSize: number; loadCount: number; type?: string }): Promise<ISuccessResponse<ILoadMoreData<Track>>>;
   createTrack(data: Omit<Track, "id">): Promise<ISuccessResponse<Track>>;

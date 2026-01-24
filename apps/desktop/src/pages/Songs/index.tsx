@@ -44,7 +44,7 @@ const Songs: React.FC = () => {
         loadCount: currentLoadCount,
         type: mode === "MUSIC" ? "MUSIC" : "AUDIOBOOK"
       });
-      
+      console.log(res, 'res');
       if (res.code === 200 && res.data) {
         // Handle different return shapes if necessary, but Adapter returns ILoadMoreData<Track>
         // Native returns Track[], Subsonic returns Track[] in data.list usually. 

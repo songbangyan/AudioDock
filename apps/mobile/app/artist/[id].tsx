@@ -8,21 +8,21 @@ import { getImageUrl } from "@/src/utils/image";
 import { usePlayMode } from "@/src/utils/playMode";
 import { Ionicons } from "@expo/vector-icons";
 import {
-    getAlbumsByArtist,
-    getArtistById,
-    getCollaborativeAlbumsByArtist,
-    getTracksByArtist,
+  getAlbumsByArtist,
+  getArtistById,
+  getCollaborativeAlbumsByArtist,
+  getTracksByArtist,
 } from "@soundx/services";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function ArtistDetailScreen() {
@@ -42,11 +42,11 @@ export default function ArtistDetailScreen() {
 
   useEffect(() => {
     if (id) {
-      loadData(Number(id));
+      loadData(id as string);
     }
   }, [id]);
 
-  const loadData = async (artistId: number) => {
+  const loadData = async (artistId: string) => {
     try {
       setLoading(true);
       const [artistRes] = await Promise.all([getArtistById(artistId)]);
