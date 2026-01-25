@@ -1,35 +1,35 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import {
-    createImportTask,
-    createPlaylist,
-    getAlbumHistory,
-    getFavoriteAlbums,
-    getFavoriteTracks,
-    getImportTask,
-    getPlaylists,
-    getRunningImportTask,
-    getTrackHistory,
-    SOURCEMAP,
-    SOURCETIPSMAP,
-    TaskStatus,
-    type ImportTask,
+  createImportTask,
+  createPlaylist,
+  getAlbumHistory,
+  getFavoriteAlbums,
+  getFavoriteTracks,
+  getImportTask,
+  getPlaylists,
+  getRunningImportTask,
+  getTrackHistory,
+  SOURCEMAP,
+  SOURCETIPSMAP,
+  TaskStatus,
+  type ImportTask,
 } from "@soundx/services";
 import { Asset } from 'expo-asset';
 import * as MediaLibrary from 'expo-media-library';
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../src/context/AuthContext";
@@ -38,8 +38,8 @@ import { useTheme } from "../../src/context/ThemeContext";
 import { getBaseURL } from "../../src/https";
 import { Playlist, Track } from "../../src/models";
 import {
-    getDownloadedTracks,
-    removeDownloadedTrack,
+  getDownloadedTracks,
+  removeDownloadedTrack,
 } from "../../src/services/cache";
 import { getImageUrl } from "../../src/utils/image";
 import { usePlayMode } from "../../src/utils/playMode";
@@ -102,7 +102,7 @@ export default function PersonalScreen() {
   const { playTrackList } = usePlayer();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { checkUpdate, progress, updateInfo, startUpdate, ignoreUpdate, cancelUpdate } = useCheckUpdate();
+  const { checkUpdate, progress, updateInfo, startUpdate, ignoreUpdate, cancelUpdate, installLocalUpdate } = useCheckUpdate();
 
   const [isModalVisible, setModalVisible] = useState(false);
 
@@ -587,10 +587,19 @@ export default function PersonalScreen() {
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           {progress > 0 && (
             <TouchableOpacity
-              onPress={() => setModalVisible(true)}
+              onPress={() => {
+                if (progress === 1) {
+                  installLocalUpdate();
+                } else {
+                  setModalVisible(true);
+                }
+              }}
               style={[styles.iconBtn, { marginRight: 10 }]}
             >
               <Ionicons name="download-outline" size={22} color={colors.text} />
+              <Text style={{ color: colors.text }}>
+                {(progress * 100).toFixed(0)}%
+              </Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity
@@ -1029,11 +1038,11 @@ export default function PersonalScreen() {
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       {key === "Emby" ? (
-                        <Image source={embyLogo} style={{ width: 20, height: 20, marginRight: 6 }} />
+                        <Image source={embyLogo} style={{ width: 20, height: 20 }} />
                       ) : key === "Subsonic" ? (
-                        <Image source={subsonicLogo} style={{ width: 20, height: 20, marginRight: 6 }} />
+                        <Image source={subsonicLogo} style={{ width: 20, height: 20 }} />
                       ) : (
-                        <Image source={logo} style={{ width: 20, height: 20, marginRight: 6 }} />
+                        <Image source={logo} style={{ width: 20, height: 20 }} />
                       )}
                       <Text
                         style={{
@@ -1211,6 +1220,9 @@ const styles = StyleSheet.create({
   },
   iconBtn: {
     padding: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
   },
   userInfo: {
     alignItems: "center",
@@ -1426,9 +1438,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   importModalContent: {
-    width: "80%",
+    width: "90%",
+    maxWidth: 450,
     borderRadius: 20,
-    padding: 24,
+    paddingHorizontal: 10,
+    paddingVertical: 20,
   },
   importModalTitle: {
     fontSize: 18,

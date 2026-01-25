@@ -72,26 +72,15 @@ export class SubsonicAuthAdapter implements IAuthAdapter {
        const config = getServiceConfig();
        // Try to get real user info if username is provided in config
        // Note: Subsonic getUser requires username, which we have in config
-       try {
-         const userRes = await this.client.get<{ user: { username: string, email?: string, adminRole?: boolean } }>("getUser", { username: (user as any).username || config.username });
-         return this.response({
-             id: 1, // Subsonic doesn't really allow numeric ID retrieval for users easily, use dummy
-             username: userRes.user.username,
-             email: userRes.user.email,
-             is_admin: userRes.user.adminRole || false,
-             token: "subsonic-session-token", // Dummy, auth is via config
-             device: { id: 1, name: deviceName || "Subsonic", userId: 1, isOnline: true, createdAt: new Date(), updatedAt: new Date() }
-         });
-       } catch (e) {
-         // Fallback if getUser fails (e.g. permissions)
-           return this.response({
-             id: 1,
-             username: config.username,
-             is_admin: false,
-             token: "subsonic-session-token", 
-             device: { id: 1, name: deviceName || "Subsonic Device", userId: 1, isOnline: true, createdAt: new Date(), updatedAt: new Date() }
-         });
-       }
+       const userRes = await this.client.get<{ user: { username: string, email?: string, adminRole?: boolean } }>("getUser", { username: (user as any).username || config.username });
+       return this.response({
+           id: 1, // Subsonic doesn't really allow numeric ID retrieval for users easily, use dummy
+           username: userRes.user.username,
+           email: userRes.user.email,
+           is_admin: userRes.user.adminRole || false,
+           token: "subsonic-session-token", // Dummy, auth is via config
+           device: { id: 1, name: deviceName || "Subsonic", userId: 1, isOnline: true, createdAt: new Date(), updatedAt: new Date() }
+       });
     }
 
     async register(user: Partial<User> & { deviceName?: string }): Promise<ISuccessResponse<any>> {

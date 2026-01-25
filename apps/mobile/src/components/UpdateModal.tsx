@@ -37,8 +37,8 @@ export const UpdateModal = ({
               
               {/* 进度条区域 */}
               <View style={styles.progressContainer}>
-                <View style={styles.progressBarBackground}>
-                  <View style={[styles.progressBarFill, { width: `${progress * 100}%` }]} />
+                <View style={[styles.progressBarBackground, { backgroundColor: colors.card }]}>
+                  <View style={[styles.progressBarFill, { width: `${progress * 100}%`, backgroundColor: colors.text }]} />
                 </View>
               </View>
               <Text style={styles.percentText}>{(progress * 100).toFixed(0)}%</Text>
@@ -116,7 +116,6 @@ const styles = StyleSheet.create({
   progressBarBackground: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#E0E0E0',
     borderRadius: 3,
     overflow: 'hidden',
   },

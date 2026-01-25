@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { Platform } from 'react-native';
 
@@ -47,48 +47,28 @@ const getFileNameFromUrl = (url: string) => {
   }
 };
 
-export const downloadAndInstallApk = async (
-  downloadUrl: string, 
-  onProgress: (progress: number) => void
-) => {
-  if (Platform.OS !== 'android') return;
-
-  // --- 修复 1：类型安全与动态文件名 ---
-  
-  // 提取原文件名
+export const getLocalApkUri = (downloadUrl: string): string => {
   const fileName = getFileNameFromUrl(downloadUrl);
-  
-  // 解决 TS 报错：FileSystem.cacheDirectory 可能为 null
-  // 我们手动断言它是 string，或者提供空字符串兜底
-  const cacheDir = FileSystem.Directory || ''; 
-  
-  // 拼接完整路径
-  const localUri = `${cacheDir}${fileName}`;
+  const cacheDir = FileSystem.cacheDirectory || ''; 
+  return `${cacheDir}${fileName}`;
+};
 
-  console.log('保存路径:', localUri);
-
-  // --- 修复结束 ---
-
-  // 创建下载任务
-  const downloadResumable = FileSystem.createDownloadResumable(
-    downloadUrl,
-    localUri,
-    {},
-    (downloadProgress) => {
-      const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-      onProgress(progress);
-    }
-  );
-
+export const checkLocalApkExists = async (downloadUrl: string): Promise<boolean> => {
   try {
-    const result = await downloadResumable.downloadAsync();
-    
-    if (!result || result.status !== 200) {
-      throw new Error(`下载失败，状态码: ${result?.status}`);
-    }
+    const localUri = getLocalApkUri(downloadUrl);
+    const fileInfo = await FileSystem.getInfoAsync(localUri);
+    return fileInfo.exists && fileInfo.size > 0;
+  } catch (e) {
+    return false;
+  }
+};
 
+export const installApk = async (localUri: string) => {
+  if (Platform.OS !== 'android') return;
+  
+  try {
     // 获取 Content URI
-    const contentUri = await FileSystem.getContentUriAsync(result.uri);
+    const contentUri = await FileSystem.getContentUriAsync(localUri);
     
     // 调起安装
     await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
@@ -96,6 +76,55 @@ export const downloadAndInstallApk = async (
       flags: 1, 
       type: 'application/vnd.android.package-archive',
     });
+  } catch (e) {
+    console.error('安装 APK 出错:', e);
+    throw e;
+  }
+};
+
+export const downloadAndInstallApk = async (
+  downloadUrl: string, 
+  onProgress: (progress: number) => void
+) => {
+  if (Platform.OS !== 'android') return;
+
+  const localUri = getLocalApkUri(downloadUrl);
+  console.log('保存路径:', localUri);
+
+  try {
+    // 检测本地是否已经存在已下载的安装包
+    const fileInfo = await FileSystem.getInfoAsync(localUri);
+    if (fileInfo.exists && fileInfo.size > 0) {
+      console.log('检测到本地已存在安装包，直接安装');
+      onProgress(1); // 立即标记为完成
+      await installApk(localUri);
+      return;
+    }
+  } catch (e) {
+    console.warn('检查本地文件失败，继续尝试下载:', e);
+  }
+
+  // 创建下载任务
+  const downloadResumable = FileSystem.createDownloadResumable(
+    downloadUrl,
+    localUri,
+    {},
+    (downloadProgress) => {
+      if (downloadProgress.totalBytesExpectedToWrite > 0) {
+        const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+        onProgress(progress);
+      }
+    }
+  );
+
+  try {
+    const result = await downloadResumable.downloadAsync();
+    
+    if (!result || (result.status !== 200 && result.status !== undefined)) {
+      throw new Error(`下载失败，状态码: ${result?.status}`);
+    }
+
+    await installApk(result.uri);
   } catch (e) {
     console.error('下载安装流程出错:', e);
     throw e;

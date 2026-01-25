@@ -1,10 +1,8 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import {
-  SOURCEMAP,
-  SOURCETIPSMAP
-} from "@soundx/services";
+import { SOURCEMAP, SOURCETIPSMAP } from "@soundx/services";
+import * as ExpoClipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -30,7 +28,12 @@ const embyLogo = require("../assets/images/emby.png");
 
 export default function LoginScreen() {
   const { colors } = useTheme();
-  const { login, register, switchServer, sourceType: authSourceType } = useAuth();
+  const {
+    login,
+    register,
+    switchServer,
+    sourceType: authSourceType,
+  } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -74,16 +77,23 @@ export default function LoginScreen() {
       const timeoutId = setTimeout(() => controller.abort(), 3000);
 
       // Determine the ping URL based on source type
-      const pingUrl = mappedType === "subsonic"
-        ? `${address.replace(/\/+$/, "")}/rest/ping.view?v=1.16.1&c=SoundX&f=json`
-        : `${address.replace(/\/+$/, "")}/hello`;
+      const pingUrl =
+        mappedType === "subsonic"
+          ? `${address.replace(/\/+$/, "")}/rest/ping.view?v=1.16.1&c=SoundX&f=json`
+          : `${address.replace(/\/+$/, "")}/hello`;
+
+      console.log(pingUrl, "pingUrl");
 
       const response = await fetch(pingUrl, { signal: controller.signal });
+      console.log(response, "response");
       clearTimeout(timeoutId);
 
       // For Subsonic, a 401 also means the server is alive (just needs auth)
       // For Native, we check /hello which should be public
-      if (response.ok || (mappedType === "subsonic" && response.status === 401)) {
+      if (
+        response.ok ||
+        (mappedType === "subsonic" && response.status === 401)
+      ) {
         setStatusMessage("ok");
         restoreCredentials(address, sourceType);
       } else {
@@ -190,22 +200,26 @@ export default function LoginScreen() {
       return;
     }
     // Registration check skipped for Subsonic as it throws "Not supported"
-      console.log("handleSubmit", serverAddress, username, password);
+    console.log("handleSubmit", serverAddress, username, password);
     try {
       setLoading(true);
-      
+
       const credsKey = `creds_${sourceType}_${serverAddress}`;
 
       // 1. Save all configurations to storage first
-      await AsyncStorage.setItem(credsKey, JSON.stringify({ username, password }));
+      await AsyncStorage.setItem(
+        credsKey,
+        JSON.stringify({ username, password }),
+      );
       await saveToHistory(serverAddress, sourceType);
-      
+
       // 2. Use the unified switchServer logic to update baseURL, adapter and service config
       // This ensures that the next request (login/register) goes to the correct server with correct adapter
-      await switchServer(serverAddress, sourceType);
+      await switchServer(serverAddress, sourceType, true);
 
       // 3. Perform login or registration
-      const mappedType = SOURCEMAP[sourceType as keyof typeof SOURCEMAP] || "audiodock";
+      const mappedType =
+        SOURCEMAP[sourceType as keyof typeof SOURCEMAP] || "audiodock";
       if (isLogin) {
         await login({ username, password });
       } else {
@@ -344,7 +358,8 @@ export default function LoginScreen() {
                     placeholder="选择或输入数据源地址"
                     addCustomItem={true}
                     onChangeValue={(value) => {
-                      if (value) checkServerConnectivity(value as string);
+                      if (value && sourceType === "AudioDock")
+                        checkServerConnectivity(value as string);
                     }}
                     theme={colors.background === "#000000" ? "DARK" : "LIGHT"}
                     style={{
@@ -363,7 +378,7 @@ export default function LoginScreen() {
                     }}
                     listMode="SCROLLVIEW"
                     onSelectItem={(item) => {
-                      if (item.value) {
+                      if (item.value && sourceType === "AudioDock") {
                         checkServerConnectivity(item.value as string);
                       }
                     }}
@@ -397,7 +412,8 @@ export default function LoginScreen() {
                               const value = item.value as string;
                               if (value) {
                                 setServerAddress(value);
-                                checkServerConnectivity(value);
+                                if (sourceType === "AudioDock")
+                                  checkServerConnectivity(value);
 
                                 // For custom items (not in history), save them
                                 if (!isPersistent) {
@@ -421,6 +437,21 @@ export default function LoginScreen() {
                               />
                             )}
                           </TouchableOpacity>
+                          <TouchableOpacity
+                            style={{ padding: 5, marginLeft: 10 }}
+                            onPress={async () => {
+                              await ExpoClipboard.setStringAsync(
+                                item.value as string,
+                              );
+                              Alert.alert("复制成功", "服务端地址已复制到剪切板");
+                            }}
+                          >
+                            <MaterialIcons
+                              name="content-copy"
+                              size={20}
+                              color={colors.secondary}
+                            />
+                          </TouchableOpacity>
                           {isPersistent && !item.parent && (
                             <TouchableOpacity
                               style={{ padding: 5, marginLeft: 10 }}
@@ -440,21 +471,22 @@ export default function LoginScreen() {
                     }}
                   />
                 </View>
-                {statusMessage === "error" ? (
-                  <MaterialIcons
-                    style={styles.statusMessage}
-                    name="error"
-                    size={24}
-                    color="red"
-                  />
-                ) : (
-                  <FontAwesome
-                    style={styles.statusMessage}
-                    name="check-circle"
-                    size={24}
-                    color={colors.primary}
-                  />
-                )}
+                {sourceType === "AudioDock" &&
+                  (statusMessage === "error" ? (
+                    <MaterialIcons
+                      style={styles.statusMessage}
+                      name="error"
+                      size={24}
+                      color="red"
+                    />
+                  ) : (
+                    <FontAwesome
+                      style={styles.statusMessage}
+                      name="check-circle"
+                      size={24}
+                      color={colors.primary}
+                    />
+                  ))}
               </View>
 
               <Text style={[styles.label, { color: colors.text }]}>用户名</Text>

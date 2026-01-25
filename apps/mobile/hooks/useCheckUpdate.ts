@@ -1,11 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState } from 'react';
 import { Alert, Platform } from 'react-native';
-import { compareVersions, downloadAndInstallApk, getLocalVersion } from '../src/utils/updateUtils';
+import { checkLocalApkExists, compareVersions, downloadAndInstallApk, getLocalApkUri, getLocalVersion, installApk } from '../src/utils/updateUtils';
 // 配置常量
 const GITHUB_USER = 'mmdctjj';
 const GITHUB_REPO = 'AudioDock';
-const USE_GHPROXY = true; // 开启加速
+const USE_GHPROXY = false; // 开启加速
 
 export interface UpdateInfo {
   version: string;
@@ -49,6 +49,7 @@ export const useCheckUpdate = () => {
         // 构造下载地址
         // 文件名格式: AudioDock-1.0.59.apk
         let downloadUrl = `https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/download/${tagName}/${GITHUB_REPO}-${remoteVersion}.apk`;
+        console.log(downloadUrl);
 
         if (USE_GHPROXY) {
           downloadUrl = `https://mirror.ghproxy.com/${downloadUrl}`;
@@ -60,6 +61,14 @@ export const useCheckUpdate = () => {
           body: data.body || '建议立即更新体验新功能',
           downloadUrl: downloadUrl
         });
+
+        // 5. 检查本地是否已经下载过
+        const exists = await checkLocalApkExists(downloadUrl);
+        if (exists) {
+          setProgress(1); // 如果已存在，直接标记进度为完成
+        } else {
+          setProgress(0);
+        }
       }
     } catch (error) {
       console.error('检查更新失败', error);
@@ -87,6 +96,17 @@ export const useCheckUpdate = () => {
     setUpdateInfo(null);
   };
 
+  const installLocalUpdate = async () => {
+    if (updateInfo) {
+      const localUri = getLocalApkUri(updateInfo.downloadUrl);
+      try {
+        await installApk(localUri);
+      } catch (e) {
+        Alert.alert('安装失败', '无法打开安装程序');
+      }
+    }
+  };
+
   // 内部函数：处理下载流程
   const startDownload = async (url: string) => {
     setProgress(0);
@@ -107,6 +127,7 @@ export const useCheckUpdate = () => {
     updateInfo,
     startUpdate,
     ignoreUpdate,
-    cancelUpdate
+    cancelUpdate,
+    installLocalUpdate
   };
 };

@@ -22,7 +22,7 @@ interface AuthContextType {
   device: any | null;
   sourceType: string;
   setSourceType: (type: string) => void;
-  switchServer: (url: string, type?: string) => Promise<void>;
+  switchServer: (url: string, type?: string, skipToken?: boolean) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -167,7 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const switchServer = async (url: string, type?: string) => {
+  const switchServer = async (url: string, type?: string, skipToken: boolean = false) => {
     try {
       setIsLoading(true);
       const targetType = type || sourceType;
@@ -197,6 +197,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         useSubsonicAdapter();
       } else {
         useNativeAdapter();
+      }
+
+      if (skipToken) {
+        setToken(null);
+        setUser(null);
+        setDevice(null);
+        return;
       }
 
       const savedToken = await AsyncStorage.getItem(`token_${url}`);
