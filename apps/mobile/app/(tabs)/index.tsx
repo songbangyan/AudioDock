@@ -7,18 +7,18 @@ import * as Device from "expo-device";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    FlatList,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
 import {
-  RenderItemParams,
-  ScaleDecorator,
+    RenderItemParams,
+    ScaleDecorator,
 } from "react-native-draggable-flatlist";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CachedImage } from "../../src/components/CachedImage";
@@ -37,7 +37,7 @@ interface Section {
 
 export default function HomeScreen() {
   const { colors } = useTheme();
-  const { playTrack } = usePlayer();
+  const { playTrack, startRadioMode } = usePlayer();
   const { mode, setMode } = usePlayMode();
   const { sourceType } = useAuth();
   const insets = useSafeAreaInsets();
@@ -291,6 +291,20 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>推荐</Text>
           <View style={styles.headerRight}>
+            {mode === "MUSIC" && (
+              <TouchableOpacity
+                onPress={() => {
+                  startRadioMode();
+                  router.push("/player");
+                }}
+                style={[
+                  styles.modeToggle,
+                  { backgroundColor: colors.card, marginRight: 10 },
+                ]}
+              >
+                <Ionicons name="radio-outline" size={20} color={colors.primary} />
+              </TouchableOpacity>
+            )}
             {sourceType !== "Subsonic" && (
               <TouchableOpacity
                 onPress={() => setMode(mode === "MUSIC" ? "AUDIOBOOK" : "MUSIC")}

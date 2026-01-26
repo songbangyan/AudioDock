@@ -1,29 +1,30 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  addAlbumToHistory,
-  addToHistory,
-  getLatestHistory,
-  reportAudiobookProgress,
+    addAlbumToHistory,
+    addToHistory,
+    getLatestHistory,
+    getLatestTracks,
+    reportAudiobookProgress
 } from "@soundx/services";
 import * as Device from "expo-device";
 import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
+    createContext,
+    useContext,
+    useEffect,
+    useRef,
+    useState,
 } from "react";
 import { Alert, Platform } from "react-native";
 import TrackPlayer, {
-  AppKilledPlaybackBehavior,
-  Capability,
-  Event,
-  IOSCategory,
-  IOSCategoryMode,
-  IOSCategoryOptions,
-  State,
-  useProgress,
-  useTrackPlayerEvents,
+    AppKilledPlaybackBehavior,
+    Capability,
+    Event,
+    IOSCategory,
+    IOSCategoryMode,
+    IOSCategoryOptions,
+    State,
+    useProgress,
+    useTrackPlayerEvents,
 } from "react-native-track-player";
 import { Track, TrackType } from "../models";
 import { socketService } from "../services/socket";
@@ -48,7 +49,7 @@ interface PlayerContextType {
   position: number;
   duration: number;
   isLoading: boolean;
-  playTrack: (track: Track, initialPosition?: number) => Promise<void>;
+  playTrack: (track: Track, initialPosition?: number, fromRadio?: boolean) => Promise<void>;
   pause: () => Promise<void>;
   resume: () => Promise<void>;
   seekTo: (position: number) => Promise<void>;
@@ -74,6 +75,10 @@ interface PlayerContextType {
   setSkipIntroDuration: (seconds: number) => void;
   skipOutroDuration: number;
   setSkipOutroDuration: (seconds: number) => void;
+
+  // 📻 电台模式
+  isRadioMode: boolean;
+  startRadioMode: () => Promise<void>;
 }
 
 const PlayerContext = createContext<PlayerContextType>({
@@ -107,6 +112,8 @@ const PlayerContext = createContext<PlayerContextType>({
   setSkipIntroDuration: () => {},
   skipOutroDuration: 0,
   setSkipOutroDuration: () => {},
+  isRadioMode: false,
+  startRadioMode: async () => {},
 });
 
 export const usePlayer = () => useContext(PlayerContext);
@@ -127,6 +134,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [sleepTimer, setSleepTimerState] = useState<number | null>(null);
   const [playbackRate, setPlaybackRateState] = useState(1);
+  const [isRadioMode, setIsRadioMode] = useState(false);
 
   // ✨ 新增 State
   const [skipIntroDuration, setSkipIntroDurationState] = useState(0);
@@ -145,6 +153,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const currentTrackRef = React.useRef(currentTrack);
   const positionRef = React.useRef(position);
   const playbackRateRef = React.useRef(playbackRate);
+  const isRadioModeRef = React.useRef(isRadioMode);
+
+  useEffect(() => {
+    isRadioModeRef.current = isRadioMode;
+  }, [isRadioMode]);
 
   useEffect(() => {
     playModeRef.current = playMode;
@@ -236,6 +249,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           "An error occurred while playing the current track.",
           event
         );
+        if (isRadioModeRef.current) {
+          playNext();
+        }
       }
       if (event.type === Event.PlaybackState) {
         setIsPlaying(event.state === State.Playing);
@@ -365,6 +381,24 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const playNext = async () => {
+    if (isRadioModeRef.current) {
+      try {
+        let res = await getLatestTracks(TrackType.MUSIC, true, 1);
+        
+        // If random track is the same as current, try one more time
+        if (res.code === 200 && res.data && res.data[0]?.id === currentTrackRef.current?.id) {
+            res = await getLatestTracks(TrackType.MUSIC, true, 1);
+        }
+
+        if (res.code === 200 && res.data && res.data.length > 0) {
+          await playTrack(res.data[0], undefined, true);
+        }
+      } catch (e) {
+        console.error("Radio playNext failed", e);
+      }
+      return;
+    }
+
     const list = trackListRef.current;
     if (playModeRef.current === PlayMode.LOOP_SINGLE) {
       await seekTo(0);
@@ -383,6 +417,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const playPrevious = async () => {
+    if (isRadioModeRef.current) {
+      await playNext(); // Previous also plays random in radio mode
+      return;
+    }
+
     const list = trackListRef.current;
     const current = currentTrackRef.current;
     if (!current || list.length === 0) return;
@@ -490,9 +529,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => clearInterval(interval);
   }, [isPlaying, isSetup, mode]);
 
-  const playTrack = async (track: Track, initialPosition?: number) => {
+  const playTrack = async (track: Track, initialPosition?: number, fromRadio = false) => {
     if (!isSetup) return;
+    if (!fromRadio) {
+      setIsRadioMode(false);
+    }
     try {
+      // If NOT in radio mode and manually playing a track, make sure radio mode is OFF
+      // This allows the "manual play" to break the radio loop
+      // But we should NOT turn it off if playTrack is called INTERNALLY by playNext (radio)
+      // Actually, it's easier to explicitly set it to false when the user clicks something.
+      // I'll keep it as is and define startRadioMode to set it to true.
+
       // ✨ 重置片尾跳过锁
       isSkippingOutroRef.current = false;
 
@@ -541,10 +589,24 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const playTrackList = async (tracks: Track[], index: number) => {
+    setIsRadioMode(false);
     setTrackList(tracks);
     if (tracks[index]) {
       await playTrack(tracks[index]);
       savePlaybackState(mode);
+    }
+  };
+
+  const startRadioMode = async () => {
+    setIsRadioMode(true);
+    // Fetch a random track and start playing
+    try {
+      const res = await getLatestTracks(TrackType.MUSIC, true, 1);
+      if (res.code === 200 && res.data && res.data.length > 0) {
+        await playTrack(res.data[0], undefined, true);
+      }
+    } catch (e) {
+      console.error("Failed to start radio mode", e);
     }
   };
 
@@ -918,6 +980,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         setSkipIntroDuration,
         skipOutroDuration,
         setSkipOutroDuration,
+        isRadioMode,
+        startRadioMode,
       }}
     >
       {children}

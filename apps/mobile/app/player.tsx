@@ -171,6 +171,7 @@ export default function PlayerScreen() {
     isLoading,
     playbackRate,
     setPlaybackRate,
+    isRadioMode,
   } = usePlayer();
   const [syncModalVisible, setSyncModalVisible] = useState(false);
   const [moreModalVisible, setMoreModalVisible] = useState(false);
@@ -601,29 +602,31 @@ export default function PlayerScreen() {
         </Text>
       </View>
 
-      <View style={styles.controls}>
-        <TouchableOpacity
-          onPress={() => {
-            togglePlayMode();
-            resetHideTimer();
-          }}
-        >
-          <Ionicons
-            name={getModeIconName(playMode)}
-            size={24}
-            color={colors.secondary}
-          />
-        </TouchableOpacity>
-
-        <View style={styles.mainControls}>
+      <View style={[styles.controls, isRadioMode && { justifyContent: "center" }]}>
+        {!isRadioMode && (
           <TouchableOpacity
             onPress={() => {
-              playPrevious();
+              togglePlayMode();
               resetHideTimer();
             }}
           >
-            <Ionicons name="play-skip-back" size={35} color={colors.text} />
+            <Ionicons
+              name={getModeIconName(playMode)}
+              size={24}
+              color={colors.secondary}
+            />
           </TouchableOpacity>
+        )}
+
+        <View style={styles.mainControls}>
+            <TouchableOpacity
+              onPress={() => {
+                playPrevious();
+                resetHideTimer();
+              }}
+            >
+              <Ionicons name="play-skip-back" size={35} color={colors.text} />
+            </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => {
@@ -650,14 +653,16 @@ export default function PlayerScreen() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          onPress={() => {
-            setShowPlaylist(true);
-            resetHideTimer();
-          }}
-        >
-          <Ionicons name="list" size={24} color={colors.secondary} />
-        </TouchableOpacity>
+        {!isRadioMode && (
+          <TouchableOpacity
+            onPress={() => {
+              setShowPlaylist(true);
+              resetHideTimer();
+            }}
+          >
+            <Ionicons name="list" size={24} color={colors.secondary} />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );

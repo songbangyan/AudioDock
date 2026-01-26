@@ -9,7 +9,7 @@ import { getBaseURL } from "../https";
 export const MiniPlayer = () => {
   const { colors } = useTheme();
   const router = useRouter();
-  const { currentTrack, isPlaying, pause, resume, playNext, playPrevious, setShowPlaylist } =
+  const { currentTrack, isPlaying, pause, resume, playNext, playPrevious, setShowPlaylist, isRadioMode } =
     usePlayer();
 
   if (!currentTrack) return null;
@@ -76,9 +76,11 @@ export const MiniPlayer = () => {
         <TouchableOpacity onPress={playNext}>
           <Ionicons name="play-skip-forward" size={20} color={colors.text} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setShowPlaylist(true)}>
-          <Ionicons name="list" size={24} color={colors.secondary} />
-        </TouchableOpacity>
+        {!isRadioMode && (
+          <TouchableOpacity onPress={() => setShowPlaylist(true)}>
+            <Ionicons name="list" size={24} color={colors.secondary} />
+          </TouchableOpacity>
+        )}
       </View>
     </TouchableOpacity>
   );
