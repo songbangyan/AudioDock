@@ -7,26 +7,28 @@ import * as Device from "expo-device";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 import {
-    RenderItemParams,
-    ScaleDecorator,
+  RenderItemParams,
+  ScaleDecorator,
 } from "react-native-draggable-flatlist";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+// import * as AudioEq from '../../modules/audio-eq';
 import { CachedImage } from "../../src/components/CachedImage";
 import { useAuth } from "../../src/context/AuthContext";
 import { useTheme } from "../../src/context/ThemeContext";
 import { cacheUtils } from "../../src/utils/cache";
 import { getImageUrl } from "../../src/utils/image";
 import { usePlayMode } from "../../src/utils/playMode";
+
 
 interface Section {
   id: string;
@@ -141,6 +143,26 @@ export default function HomeScreen() {
     },
     [mode]
   );
+
+   useEffect(() => {
+    console.log("====================================");
+    console.log("正在检查原生模块链接状态...");
+    
+    // 1. 打印整个模块对象，看看是不是空对象
+    // console.log("AudioEq Module Object:", AudioEq);
+
+    // 2. 尝试调用原生方法（如果你的 index.ts 做了封装）
+    try {
+      // 这里的 initEqualizer 只是触发一下，看看会不会报错
+      // 如果报错 "undefined is not a function"，说明原生模块没连上
+      // const result = AudioEq.initEqualizer(0); 
+      // console.log("调用 initEqualizer 结果:", result);
+    } catch (e) {
+      console.error("调用失败，原生模块可能未链接:", e);
+    }
+    
+    console.log("====================================");
+  }, []);
 
   useFocusEffect(
     useCallback(() => {

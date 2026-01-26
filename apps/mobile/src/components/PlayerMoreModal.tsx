@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { isCached } from "../services/cache";
 import { downloadTrack } from "../services/downloadManager";
 import { AddToPlaylistModal } from "./AddToPlaylistModal";
+import { EqualizerModal } from "./EqualizerModal";
 import { LyricsFontSizeModal } from "./LyricsFontSizeModal";
 import SleepTimerModal from "./SleepTimerModal";
 
@@ -61,6 +62,7 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [lyricsSizeVisible, setLyricsSizeVisible] = useState(false);
+  const [eqVisible, setEqVisible] = useState(false);
 
   // 跳过片头/片尾 modal 状态
   const [skipModalVisible, setSkipModalVisible] = useState(false);
@@ -257,6 +259,15 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
       onPress: () => {
         setVisible(false);
         setLyricsSizeVisible(true);
+      },
+      disabled: false,
+    },
+    {
+      icon: "options-outline" as const,
+      label: "均衡器 (EQ)",
+      onPress: () => {
+        setVisible(false);
+        setEqVisible(true);
       },
       disabled: false,
     },
@@ -638,6 +649,11 @@ export const PlayerMoreModal: React.FC<PlayerMoreModalProps> = ({
         lyricFontSize={lyricFontSize}
         setLyricFontSize={setLyricFontSize}
         previewLyrics={currentTrack?.lyrics || ""}
+      />
+
+      <EqualizerModal
+        visible={eqVisible}
+        onClose={() => setEqVisible(false)}
       />
     </>
   );

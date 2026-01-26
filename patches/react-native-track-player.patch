@@ -1,0 +1,23 @@
+diff --git a/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt b/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
+index 13a6c609faeb6448f138afbebfbd479442161586..6622d7748c8a550a1d7915914481f89b640a34c2 100644
+--- a/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
++++ b/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
+@@ -446,6 +446,18 @@ class MusicModule(reactContext: ReactApplicationContext) : NativeTrackPlayerSpec
+         callback.resolve(musicService.getVolume())
+     }
+ 
++    @ReactMethod 
++    fun getAudioSessionId(callback: Promise) = launchInScope {
++        if (verifyServiceBoundOrReject(callback)) return@launchInScope
++        
++        val player = musicService.player
++        if (player != null) {
++            callback.resolve(player.audioSessionId)
++        } else {
++            callback.reject("no_player", "Player is null")
++        }
++    }
++
+     override fun setRate(rate: Double, callback: Promise) = launchInScope {
+         if (verifyServiceBoundOrReject(callback)) return@launchInScope
+ 

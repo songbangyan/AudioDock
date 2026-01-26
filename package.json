@@ -36,6 +36,9 @@
   "pnpm": {
     "overrides": {
       "esbuild": "0.21.4"
+    },
+    "patchedDependencies": {
+      "react-native-track-player": "patches/react-native-track-player.patch"
     }
   }
 }

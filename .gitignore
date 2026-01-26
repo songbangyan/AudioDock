@@ -9,3 +9,6 @@ dist/
 *.db
 **/release
 .jwt_secret
+
+**/android/build
+**/ios/build
