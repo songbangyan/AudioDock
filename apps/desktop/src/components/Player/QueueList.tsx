@@ -6,10 +6,10 @@ import {
   PauseCircleFilled,
   PlayCircleFilled,
   PlayCircleOutlined,
-  PlusOutlined,
+  PlusOutlined
 } from "@ant-design/icons";
 import { Dropdown, List, theme, Typography } from "antd";
-import React, { useEffect, useRef } from "react";
+import React, { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { TrackType, type Album, type Track } from "../../models";
 import { resolveArtworkUri } from "../../services/trackResolver";
 import { useAuthStore } from "../../store/auth";
@@ -35,12 +35,16 @@ interface QueueListProps {
   style?: React.CSSProperties;
 }
 
+export interface QueueListRef {
+    scrollToActive: () => void;
+}
+
 const getCoverUrl = (item?: Track | Album | null) => {
     if (!item) return `https://picsum.photos/seed/0/300/300`;
     return resolveArtworkUri(item) || `https://picsum.photos/seed/${item.id}/300/300`;
   };
 
-  export const QueueList: React.FC<QueueListProps> = ({
+export const QueueList = forwardRef<QueueListRef, QueueListProps>(({
   tracks,
   currentTrack,
   isPlaying,
@@ -51,21 +55,29 @@ const getCoverUrl = (item?: Track | Album | null) => {
   onDelete,
   className,
   style,
-}) => {
+}, ref) => {
   const { token } = theme.useToken();
   const { user } = useAuthStore();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const scrollToActive = () => {
     if (containerRef.current && currentTrack) {
-      const activeElement = containerRef.current.querySelector(
-        `.${styles.activeItem}`
-      );
-      if (activeElement) {
-        activeElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        const activeElement = containerRef.current.querySelector(
+          `.${styles.activeItem}`
+        );
+        if (activeElement) {
+          activeElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
       }
-    }
-  }, [currentTrack?.id, tracks]);
+  }
+
+  useImperativeHandle(ref, () => ({
+    scrollToActive
+  }));
+
+  useEffect(() => {
+    scrollToActive();
+  }, [currentTrack?.id]);
 
   return (
     <div ref={containerRef} style={{ height: "100%" }}>
@@ -239,4 +251,4 @@ const getCoverUrl = (item?: Track | Album | null) => {
       />
     </div>
   );
-};
+});

@@ -1,44 +1,45 @@
 import Icon, {
-    BackwardOutlined, // Added as per instruction
-    DeliveredProcedureOutlined,
-    DownOutlined,
-    FontColorsOutlined,
-    ForwardOutlined,
-    HeartFilled,
-    HeartOutlined,
-    OrderedListOutlined,
-    PauseCircleFilled,
-    PlayCircleFilled,
-    SoundOutlined,
-    StepBackwardOutlined,
-    StepForwardOutlined,
-    TeamOutlined,
+  AimOutlined,
+  BackwardOutlined,
+  DeliveredProcedureOutlined,
+  DownOutlined,
+  FontColorsOutlined,
+  ForwardOutlined,
+  HeartFilled,
+  HeartOutlined,
+  OrderedListOutlined,
+  PauseCircleFilled,
+  PlayCircleFilled,
+  SoundOutlined,
+  StepBackwardOutlined,
+  StepForwardOutlined,
+  TeamOutlined,
 } from "@ant-design/icons";
 import {
-    addToHistory,
-    addTrackToPlaylist,
-    deleteTrack,
-    getDeletionImpact,
-    getLatestHistory,
-    getPlaylists,
-    type Playlist
+  addToHistory,
+  addTrackToPlaylist,
+  deleteTrack,
+  getDeletionImpact,
+  getLatestHistory,
+  getPlaylists,
+  type Playlist,
 } from "@soundx/services";
 import {
-    Avatar, // Added
-    Button,
-    Drawer,
-    Flex,
-    InputNumber,
-    List, // Rename to avoid conflict if needed, though useMessage is typically context. Context is safer.
-    Modal,
-    notification, // Added
-    Popover,
-    Slider,
-    Space, // Added
-    Tabs,
-    theme,
-    Tooltip,
-    Typography,
+  Avatar,
+  Button,
+  Drawer,
+  Flex,
+  InputNumber,
+  List,
+  Modal,
+  notification,
+  Popover,
+  Slider,
+  Space,
+  Tabs,
+  theme,
+  Tooltip,
+  Typography,
 } from "antd";
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -52,7 +53,10 @@ import { useMediaSession } from "../../hooks/useMediaSession";
 import { getBaseURL } from "../../https";
 import { type Album, type Device, type Track, TrackType } from "../../models";
 import { socketService } from "../../services/socket";
-import { resolveArtworkUri, resolveTrackUri } from "../../services/trackResolver";
+import {
+  resolveArtworkUri,
+  resolveTrackUri,
+} from "../../services/trackResolver";
 import { useAuthStore } from "../../store/auth";
 import { usePlayerStore } from "../../store/player";
 import { useSettingsStore } from "../../store/settings";
@@ -63,7 +67,7 @@ import PlayingIndicator from "../PlayingIndicator";
 import UserSelectModal from "../UserSelectModal";
 import styles from "./index.module.less";
 import Lyrics from "./Lyrics";
-import { QueueList } from "./QueueList";
+import { QueueList, type QueueListRef } from "./QueueList";
 
 const { Text, Title } = Typography;
 
@@ -94,7 +98,7 @@ const Player: React.FC = () => {
   const { user } = useAuthStore();
   const { updateDesktopLyric } = useSettingsStore();
   const desktopLyricEnable = useSettingsStore(
-    (state) => state.desktopLyric.enable
+    (state) => state.desktopLyric.enable,
   );
 
   // Sync store active mode with app mode
@@ -135,6 +139,17 @@ const Player: React.FC = () => {
   const [notificationApi, notificationContextHolder] =
     notification.useNotification();
 
+  const queueListRef = useRef<QueueListRef>(null);
+  const fullQueueListRef = useRef<QueueListRef>(null);
+
+  const handleLocateTrack = () => {
+    queueListRef.current?.scrollToActive();
+  };
+
+  const handleLocateFullTrack = () => {
+    fullQueueListRef.current?.scrollToActive();
+  };
+
   // Sleep Timer State
   const [sleepTimerMode, setSleepTimerMode] = useState<
     "off" | "time" | "count" | "current"
@@ -157,7 +172,7 @@ const Player: React.FC = () => {
       initialUri = currentTrack.path.startsWith("http")
         ? currentTrack.path
         : `${getBaseURL()}${currentTrack.path}`;
-      
+
       if (!initialUri.startsWith("http")) {
         initialUri = `${window.location.origin}${initialUri}`;
       }
@@ -172,7 +187,7 @@ const Player: React.FC = () => {
       // Only update if we still have the same track
       const state = usePlayerStore.getState();
       if (uri && state.currentTrack?.id === currentTrack.id) {
-         setResolvedUri(uri);
+        setResolvedUri(uri);
       }
     });
   }, [currentTrack?.id, cacheEnabled]);
@@ -182,7 +197,7 @@ const Player: React.FC = () => {
       const time = saved ? Number(saved) : null;
       // If time passed while closed, user will see immediate trigger or we can handle in effect
       return time;
-    }
+    },
   ); // Timestamp
   const [sleepTimerCount, setSleepTimerCount] = useState<number>(() => {
     const saved = localStorage.getItem("sleepTimerCount");
@@ -447,7 +462,7 @@ const Player: React.FC = () => {
       deviceName: string;
     }) => {
       message.info(
-        `${payload.username} (${payload.deviceName}) 离开了同步播放`
+        `${payload.username} (${payload.deviceName}) 离开了同步播放`,
       );
       // We might want to remove them from list locally too, though update usually follows
     };
@@ -554,7 +569,7 @@ const Player: React.FC = () => {
         }
       } catch (e: any) {
         // AbortError is normal when src changes while play() is pending
-        if (e.name !== 'AbortError') {
+        if (e.name !== "AbortError") {
           console.error("[Player] Playback error:", e);
           pause();
         }
@@ -613,7 +628,7 @@ const Player: React.FC = () => {
           0,
           deviceName,
           device.id,
-          isSynced
+          isSynced,
         );
       })();
     }
@@ -631,7 +646,7 @@ const Player: React.FC = () => {
           currentTime,
           deviceName,
           device.id,
-          isSynced
+          isSynced,
         );
       })();
     }
@@ -677,7 +692,7 @@ const Player: React.FC = () => {
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
       const audioDuration = audioRef.current.duration;
-      
+
       // Prioritize database duration because streaming/transcoding often reports 0 or Infinity
       if (currentTrack?.duration && currentTrack.duration > 0) {
         setDuration(currentTrack.duration);
@@ -952,7 +967,9 @@ const Player: React.FC = () => {
 
   const getCoverUrl = (item?: Track | Album | null) => {
     if (!item) return `https://picsum.photos/seed/0/300/300`;
-    return resolveArtworkUri(item) || `https://picsum.photos/seed/${item.id}/300/300`;
+    return (
+      resolveArtworkUri(item) || `https://picsum.photos/seed/${item.id}/300/300`
+    );
   };
 
   // Skip forward 15 seconds
@@ -1130,7 +1147,9 @@ const Player: React.FC = () => {
                 padding: "8px 12px",
                 borderRadius: "4px",
                 backgroundColor:
-                  playMode === "single" ? token.colorFillTertiary : "transparent",
+                  playMode === "single"
+                    ? token.colorFillTertiary
+                    : "transparent",
               }}
             >
               <Flex align="center">
@@ -1216,7 +1235,12 @@ const Player: React.FC = () => {
               src={getCoverUrl(currentTrack)}
               alt="cover"
               className={styles.coverImage}
-              onError={(e) => console.error(`[Player] Mini Cover Load Error: ${currentTrack?.cover}`, e)}
+              onError={(e) =>
+                console.error(
+                  `[Player] Mini Cover Load Error: ${currentTrack?.cover}`,
+                  e,
+                )
+              }
             />
           )}
         </div>
@@ -1329,9 +1353,10 @@ const Player: React.FC = () => {
       </div>
       {/* Volume & Settings */}
       <div className={styles.settings}>
-        {appMode !== TrackType.AUDIOBOOK && currentTrack &&
+        {appMode !== TrackType.AUDIOBOOK &&
+          currentTrack &&
           (currentTrack.likedByUsers?.find(
-            (n) => n.userId === (user?.id || 0)
+            (n) => n.userId === (user?.id || 0),
           ) ? (
             <HeartFilled
               onClick={() => toggleLike(currentTrack.id, "unlike")}
@@ -1361,7 +1386,7 @@ const Player: React.FC = () => {
                       <Text>
                         剩余
                         {formatDuration(
-                          (sleepTimerEndTime! - Date.now()) / 1000
+                          (sleepTimerEndTime! - Date.now()) / 1000,
                         )}
                       </Text>
                     )}
@@ -1610,7 +1635,12 @@ const Player: React.FC = () => {
               src={getCoverUrl(currentTrack)}
               alt="Current Cover"
               className={styles.fullPlayerCover}
-              onError={(e) => console.error(`[Player] Full Cover Load Error: ${currentTrack?.cover}`, e)}
+              onError={(e) =>
+                console.error(
+                  `[Player] Full Cover Load Error: ${currentTrack?.cover}`,
+                  e,
+                )
+              }
             />
 
             <Flex
@@ -1636,7 +1666,8 @@ const Player: React.FC = () => {
             </Flex>
 
             <Flex justify="center" style={{ fontSize: 50 }} gap={30}>
-              {!isRadioMode && appMode === TrackType.MUSIC &&
+              {!isRadioMode &&
+                appMode === TrackType.MUSIC &&
                 renderPlayOrderButton()}
 
               {/* Skip Backward 15s */}
@@ -1671,7 +1702,8 @@ const Player: React.FC = () => {
                 />
               </Tooltip>
 
-              {!isRadioMode && appMode === TrackType.MUSIC &&
+              {!isRadioMode &&
+                appMode === TrackType.MUSIC &&
                 renderPlaylistButton(styles.controlIcon)}
             </Flex>
           </Flex>
@@ -1703,7 +1735,11 @@ const Player: React.FC = () => {
                   }}
                 >
                   <img
-                    src={getCoverUrl({ cover: currentTrack?.artistEntity?.avatar, id: currentTrack?.id, name: currentTrack?.artist } as any)}
+                    src={getCoverUrl({
+                      cover: currentTrack?.artistEntity?.avatar,
+                      id: currentTrack?.id,
+                      name: currentTrack?.artist,
+                    } as any)}
                     alt="Current Cover"
                     style={{
                       width: "15px",
@@ -1726,7 +1762,11 @@ const Player: React.FC = () => {
                   }}
                 >
                   <img
-                    src={getCoverUrl({ cover: currentTrack?.albumEntity?.cover, id: currentTrack?.id, name: currentTrack?.album } as any)}
+                    src={getCoverUrl({
+                      cover: currentTrack?.albumEntity?.cover,
+                      id: currentTrack?.id,
+                      name: currentTrack?.album,
+                    } as any)}
                     alt="Current Cover"
                     style={{
                       width: "15px",
@@ -1746,6 +1786,16 @@ const Player: React.FC = () => {
               <Tabs
                 activeKey={activeTab}
                 onChange={(e) => setActiveTab(e as "playlist" | "lyrics")}
+                tabBarExtraContent={
+                  activeTab === "playlist" ? (
+                    <Button
+                      type="text"
+                      icon={<AimOutlined />}
+                      onClick={handleLocateFullTrack}
+                      title="定位到当前播放歌曲"
+                    />
+                  ) : undefined
+                }
                 items={[
                   { key: "lyrics", label: "歌词" },
                   { key: "playlist", label: `播放列表 (${playlist.length})` },
@@ -1771,6 +1821,7 @@ const Player: React.FC = () => {
             ) : activeTab === "playlist" ? (
               <div style={{ flex: 1, overflowY: "auto", paddingRight: "10px" }}>
                 <QueueList
+                  ref={fullQueueListRef}
                   tracks={playlist}
                   currentTrack={currentTrack}
                   isPlaying={isPlaying}
@@ -1798,9 +1849,19 @@ const Player: React.FC = () => {
         title={`播放列表 (${playlist.length})`}
         placement="right"
         open={isPlaylistOpen}
+        width={"50%"}
         onClose={() => setIsPlaylistOpen(false)}
+        extra={
+          <Button
+            type="text"
+            icon={<AimOutlined />}
+            onClick={handleLocateTrack}
+            title="定位到当前播放歌曲"
+          />
+        }
       >
         <QueueList
+          ref={queueListRef}
           tracks={playlist}
           currentTrack={currentTrack}
           isPlaying={isPlaying}
